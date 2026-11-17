@@ -17,6 +17,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableLongStateOf
@@ -78,7 +81,16 @@ private fun Root() {
 
     BackHandler(enabled = ui.sheet != null || ui.page != null) { if (ui.sheet != null) ui.close() else ui.back() }
 
-    AppTheme(tokFor(st.style)) {
+    val tok = remember(st.style, st.theme, st.ct) { tokFor(st.style).let { if (st.theme == "custom") it.withCustom(st.ct) else it } }
+    val view = LocalView.current
+    SideEffect {
+        val win = (view.context as? android.app.Activity)?.window ?: return@SideEffect
+        WindowCompat.getInsetsController(win, view).apply {
+            isAppearanceLightStatusBars = !tok.isDark
+            isAppearanceLightNavigationBars = !tok.isDark
+        }
+    }
+    AppTheme(tok) {
     CompositionLocalProvider(LocalUi provides ui, LocalIcons provides IconPrefs(st.iconSet, st.iconTint)) {
         Box(Modifier.fillMaxSize()) {
             // содержимое записывается в слой — по нему меню делает размытие и преломление

@@ -33,6 +33,14 @@ data class WidgetCfg(
     val room: Boolean = true,           // показывать кабинет
 )
 
+/** Своя тема: акцентный и основной цвет (тон по кругу, насыщенность, яркость Ч/Б) и прозрачность поверхностей. */
+@Serializable
+data class CustomTheme(
+    val ah: Float = 268f, val asat: Float = .85f, val al: Float = .66f,   // акцент
+    val bh: Float = 255f, val bs: Float = .35f, val bl: Float = .09f,     // основной (фон)
+    val alpha: Float = .72f,                                             // прозрачность карточек и панелей
+)
+
 @Serializable
 data class AppState(
     val grade: Int = 7,
@@ -50,7 +58,9 @@ data class AppState(
     val widget: WidgetCfg = WidgetCfg(),
     val iconSet: String = "android",    // android | fluent | twemoji | mono
     val iconTint: String = "subject",   // для mono: subject | accent | bw
-    val style: String = "ios26",        // ios26 | pixel (остальные — позже)
+    val style: String = "ios26",        // ios26 | pixel | ios18 | color | origin | oneui
+    val theme: String = "dark",         // dark | custom
+    val ct: CustomTheme = CustomTheme(),
 ) {
     val bells: List<Bell> get() = if (shift == 2) bells2 else bells1
     val schoolDays: Int get() = if (sixDays) 6 else 5

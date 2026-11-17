@@ -8,6 +8,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -52,6 +54,7 @@ data class Tok(
     val swW: Dp = 51.dp, val swH: Dp = 31.dp, val swPad: Dp = 2.dp,
     val glow: Boolean = false,      // белое внутреннее свечение (ColorOS)
     val nav: String = "glass",      // glass | ios18 | m3 | island | origin | oneui
+    val wfill: Color? = null,       // своя тема: заливка виджета
 ) {
     val pixel: Boolean get() = id == "pixel"
     val accSoft: Color get() = acc.copy(alpha = .17f)
@@ -168,6 +171,42 @@ fun tokFor(style: String): Tok = when (style) {
     else -> Ios26Dark
 }
 
+/** Цвет из тона (0..360), насыщенности и яркости (0..1). */
+fun hsl(h: Float, s: Float, l: Float, a: Float = 1f): Color =
+    Color.hsl(((h % 360f) + 360f) % 360f, s.coerceIn(0f, 1f), l.coerceIn(0f, 1f), a.coerceIn(0f, 1f))
+
+/**
+ * Своя тема: берём форму и поведение выбранного стиля, а цвета — из круга и ползунков.
+ * Светлый основной цвет даёт светлую тему (тёмный текст), тёмный — тёмную.
+ */
+fun Tok.withCustom(c: kz.alnazar.schedule.data.CustomTheme): Tok {
+    val dark = c.bl < .55f
+    val base = hsl(c.bh, c.bs, c.bl)
+    val up = if (dark) 1f else -1f
+    val tx = if (dark) Color.White else Color(0xFF111114)
+    val acc = hsl(c.ah, c.asat, c.al)
+    val accTx = if (acc.luminance() > .45f) Color(0xFF0B0B10) else Color.White
+    val surf = hsl(c.bh, c.bs * .9f, c.bl + up * .09f)
+    val surf2 = hsl(c.bh, c.bs * .85f, c.bl + up * .16f)
+    return copy(
+        bg = listOf(base, hsl(c.bh + 28f, c.bs, c.bl + up * .05f), hsl(c.bh - 24f, c.bs, c.bl + up * .02f)),
+        s1 = surf.copy(alpha = c.alpha), s2 = surf2.copy(alpha = (c.alpha + .15f).coerceAtMost(1f)),
+        sheet = hsl(c.bh, c.bs * .9f, c.bl + up * .07f),
+        tx = tx, tx2 = tx.copy(alpha = .6f), line = tx.copy(alpha = .12f),
+        acc = acc, accTx = accTx,
+        cardBorderTop = if (glassy) tx.copy(alpha = if (dark) .28f else .6f) else Color.Transparent,
+        cardBorderBottom = if (glassy) tx.copy(alpha = .06f) else Color.Transparent,
+        navBg = surf.copy(alpha = (c.alpha * .8f).coerceAtLeast(.35f)), navBorder = tx.copy(alpha = .16f),
+        segOn = if (segKind == "soft") acc else tx.copy(alpha = if (id == "ios18") .28f else .18f),
+        swOn = if (id == "ios26" || id == "ios18") Color(0xFF34C759) else acc,
+        hero = if (hero != null) lerp(base, acc, .45f) else null, heroTx = if (hero != null) tx else null,
+        secCont = lerp(surf2, acc, .35f), onSecCont = tx, outline = tx.copy(alpha = .45f),
+        wfill = hsl(c.bh, c.bs, c.bl + (if (dark) .07f else -.03f), (c.alpha + .2f).coerceAtMost(1f)),
+    )
+}
+
+val Tok.isDark: Boolean get() = bg.first().luminance() < .5f
+
 val LocalTok = staticCompositionLocalOf { Ios26Dark }
 
 /** Короткий доступ к токенам из любого компонента. */
@@ -176,7 +215,10 @@ val T: Tok @Composable get() = LocalTok.current
 @Composable
 fun AppTheme(tok: Tok = Ios26Dark, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = darkColorScheme(
+        colorScheme = if (tok.isDark) darkColorScheme(
+            primary = tok.acc, onPrimary = tok.accTx, background = tok.bg.first(), surface = tok.sheet,
+            onSurface = tok.tx, onBackground = tok.tx,
+        ) else lightColorScheme(
             primary = tok.acc, onPrimary = tok.accTx, background = tok.bg.first(), surface = tok.sheet,
             onSurface = tok.tx, onBackground = tok.tx,
         ),

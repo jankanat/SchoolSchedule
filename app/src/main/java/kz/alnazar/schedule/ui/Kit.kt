@@ -525,7 +525,7 @@ fun BoxScope.SheetHost(visible: Boolean, onDismiss: () -> Unit, content: @Compos
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 26.dp),
         ) {
-            Box(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp).size(38.dp, 5.dp).clip(RoundedCornerShape(9.dp)).background(Color(0x40FFFFFF)))
+            Box(Modifier.align(Alignment.CenterHorizontally).padding(bottom = 12.dp).size(38.dp, 5.dp).clip(RoundedCornerShape(9.dp)).background(T.tx.copy(alpha = .25f)))
             content()
         }
     }

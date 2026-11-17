@@ -47,5 +47,8 @@ object Store {
         WidgetUpdater.refresh(ctx.applicationContext)
     }
 
+    /** Только в памяти, без записи и обновления виджетов — для живого предпросмотра при перетаскивании. */
+    fun preview(f: (AppState) -> AppState) { _state.value = f(_state.value) }
+
     fun exportJson(): String = json.encodeToString(AppState.serializer(), _state.value)
 }

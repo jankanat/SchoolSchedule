@@ -1,6 +1,7 @@
 package kz.alnazar.schedule.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -96,37 +97,40 @@ fun NavLabel(text: String, color: Color, size: Float = 11f, bold: Boolean = fals
 
 private fun Modifier.noRippleClick(onClick: () -> Unit) = this.clickable(MutableInteractionSource(), null, onClick = onClick)
 
-/* ===================== Pixel OS: гибкая панель Material 3 Expressive (64 dp) ===================== */
+/* ===================== Pixel OS: панель Material 3 Expressive (Android 16–17) ===================== */
 
 /**
- * Android 16–17: панель стала ниже (64 dp), за активной вкладкой капсула,
- * подпись активной — цветом secondary. По-андроид-17-ному подложка полупрозрачная с размытием.
+ * Современная выразительная панель: 64 dp, полупрозрачная с размытием (Android 17).
+ * Активная вкладка — капсула secondaryContainer с иконкой и подписью в одну строку,
+ * она «перетекает» по ширине с пружиной; неактивные — только иконки.
  */
 @Composable
 fun PixelNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier = Modifier) {
     val t = T
     val scope = rememberCoroutineScope()
     val cur = pager.targetPage
-    Box(modifier.fillMaxWidth().backdropBlur(backdrop, 18.dp, t.navBg.copy(alpha = .86f), RoundedCornerShape(0.dp))) {
+    Box(modifier.fillMaxWidth().backdropBlur(backdrop, 18.dp, t.navBg.copy(alpha = .88f), RoundedCornerShape(0.dp))) {
         Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 8.dp),
+            Modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
         ) {
             tabs.forEachIndexed { i, tab ->
                 val on = i == cur
-                val w by animateDpAsState(if (on) 56.dp else 0.dp, spring(dampingRatio = .55f, stiffness = 420f), label = "ind")
-                val ic by animateColorAsState(if (on) t.onSecCont else t.tx2, tween(180), label = "ic")
-                val lc by animateColorAsState(if (on) t.acc else t.tx2, tween(180), label = "lc")
-                Column(
-                    Modifier.weight(1f).fillMaxHeight().noRippleClick { scope.launch { pager.animateScrollToPage(i) } },
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+                val bg by animateColorAsState(if (on) t.secCont else Color.Transparent, tween(220), label = "pbg")
+                val ic by animateColorAsState(if (on) t.onSecCont else t.tx2, tween(220), label = "pic")
+                Row(
+                    Modifier.height(44.dp).clip(RoundedCornerShape(99.dp)).background(bg)
+                        .noRippleClick { scope.launch { pager.animateScrollToPage(i) } }
+                        .animateContentSize(spring(dampingRatio = .62f, stiffness = 380f))
+                        .padding(horizontal = if (on) 16.dp else 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(Modifier.size(56.dp, 32.dp), contentAlignment = Alignment.Center) {
-                        Box(Modifier.width(w).height(32.dp).clip(RoundedCornerShape(99.dp)).background(t.secCont))
-                        Icon(tab.icon, contentDescription = null, tint = ic, modifier = Modifier.size(24.dp))
+                    Icon(tab.icon, contentDescription = tab.label, tint = ic, modifier = Modifier.size(24.dp))
+                    if (on) {
+                        Spacer(Modifier.width(8.dp))
+                        NavLabel(tab.label, t.onSecCont, 14f, bold = true)
                     }
-                    Spacer(Modifier.height(4.dp))
-                    NavLabel(tab.label, lc, 12f, bold = on)
                 }
             }
         }
@@ -193,12 +197,15 @@ fun FloatNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
         // выделение
         when (kind) {
             "island" -> {
-                val ix = pad + itemW * frac
+                // ColorOS 17: без линзы — мягкий акцентный ореол за активной иконкой и точка под подписью
+                val d = 40.dp
+                val ix = pad + itemW * frac + (itemW - d) / 2
                 Box(
-                    Modifier.offset(x = ix, y = pad).width(itemW).height(h - pad * 2).clip(RoundedCornerShape(99.dp))
-                        .background(Color(0x24FFFFFF))
-                        .border(1.dp, Brush.verticalGradient(listOf(Color(0x59FFFFFF), Color(0x0DFFFFFF))), RoundedCornerShape(99.dp)),
+                    Modifier.offset(x = ix, y = 4.dp).size(d).clip(RoundedCornerShape(99.dp))
+                        .background(Brush.radialGradient(listOf(t.acc.copy(alpha = .38f), t.acc.copy(alpha = .10f), Color.Transparent)))
+                        .border(1.dp, Brush.verticalGradient(listOf(Color(0x4DFFFFFF), Color(0x00FFFFFF))), RoundedCornerShape(99.dp)),
                 )
+                Box(Modifier.offset(x = pad + itemW * frac + (itemW - 5.dp) / 2, y = h - 9.dp).size(5.dp).clip(RoundedCornerShape(99.dp)).background(t.acc))
             }
             else -> {
                 val pw = if (kind == "origin") 50.dp else 56.dp
@@ -215,12 +222,14 @@ fun FloatNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                 val on = i == pager.targetPage
                 val c by animateColorAsState(if (on) t.acc else t.tx2, tween(160), label = "fn")
                 Column(
-                    Modifier.weight(1f).fillMaxHeight().noRippleClick { scope.launch { pager.animateScrollToPage(i) } }.padding(top = 11.dp),
+                    Modifier.weight(1f).fillMaxHeight().noRippleClick { scope.launch { pager.animateScrollToPage(i) } }
+                        .padding(top = if (kind == "island") 12.dp else 11.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Icon(tab.icon, contentDescription = null, tint = c, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.height(if (kind == "island") 4.dp else 6.dp))
-                    NavLabel(tab.label, if (on && kind != "island") t.tx else c, 10.5f, bold = on)
+                    Icon(tab.icon, contentDescription = null, tint = c, modifier = Modifier.size(if (kind == "island") 24.dp else 22.dp))
+                    Spacer(Modifier.height(if (kind == "island") 5.dp else 6.dp))
+                    // подпись ужимается до ширины вкладки, чтобы не вылезать за выделение
+                    NavLabel(tab.label, if (on && kind != "island") t.tx else c, if (kind == "island") 10f else 10.5f, bold = on)
                 }
             }
         }

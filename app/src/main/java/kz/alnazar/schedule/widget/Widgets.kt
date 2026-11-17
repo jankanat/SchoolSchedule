@@ -16,6 +16,7 @@ import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.Image
 import kz.alnazar.schedule.ui.IconRes
+import kz.alnazar.schedule.ui.withCustom
 import androidx.glance.GlanceModifier
 import androidx.glance.ImageProvider
 import androidx.glance.action.actionStartActivity
@@ -57,7 +58,21 @@ import kz.alnazar.schedule.ui.MainActivity
 internal data class WPal(
     val upper: Boolean, val tileR: Float, val tx: Color, val tx2: Color, val tx3: Color, val acc: Color, val soft: Color,
     val colBg: Color, val line: Color, val tileBw: Color, val bg: Int, val radius: Dp,
+    val fill: Color? = null,   // своя тема: сплошная заливка вместо картинки-фона
 )
+
+/** Своя тема для виджета: форма от стиля, цвета — из настроек пользователя. */
+private fun customPal(base: WPal, s: kz.alnazar.schedule.data.AppState): WPal {
+    val t = kz.alnazar.schedule.ui.tokFor(s.style).withCustom(s.ct)
+    val c = s.ct
+    val dark = c.bl < .55f
+    val fill = kz.alnazar.schedule.ui.hsl(c.bh, c.bs, c.bl + (if (dark) .07f else -.03f), (c.alpha + .2f).coerceAtMost(1f))
+    return base.copy(
+        tx = t.tx, tx2 = t.tx.copy(alpha = .62f), tx3 = t.tx.copy(alpha = .36f), acc = t.acc,
+        soft = t.acc.copy(alpha = .2f), colBg = t.tx.copy(alpha = .07f), line = t.tx.copy(alpha = .12f),
+        tileBw = t.tx.copy(alpha = .16f), fill = fill,
+    )
+}
 private fun pal(upper: Boolean, tileR: Float, acc: Color, soft: Color, bg: Int, r: Int, tx: Color = Color.White, tx2: Color = Color(0xFF9B9BA3)) =
     WPal(upper, tileR, tx, tx2, tx2.copy(alpha = .55f), acc, soft, Color(0x12FFFFFF), Color(0x1FFFFFFF), Color(0xFF2C2C2E), bg, r.dp)
 private val IOS = WPal(true, .3f, Color(0xFFFFFFFF), Color(0x99FFFFFF), Color(0x59FFFFFF), Color(0xFF0A84FF), Color(0x2B0A84FF),
@@ -97,11 +112,11 @@ abstract class LessonWidget : GlanceAppWidget() {
             val s by Store.state.collectAsState()
             val tick by Store.tick.collectAsState()
             val n = remember(s, tick) { Sched.now(s) }
-            val pal = palFor(s.style)
+            val pal = palFor(s.style).let { if (s.theme == "custom") customPal(it, s) else it }
             CompositionLocalProvider(LocalWP provides pal) {
                 Box(
                     GlanceModifier.fillMaxSize()
-                        .background(ImageProvider(pal.bg))
+                        .let { m -> pal.fill?.let { m.background(it) } ?: m.background(ImageProvider(pal.bg)) }
                         .cornerRadius(pal.radius)
                         .clickable(actionStartActivity<MainActivity>())
                         .padding(horizontal = padH, vertical = padV),

@@ -55,9 +55,10 @@ fun WidgetFrame(w: Int, h: Int, pad: androidx.compose.foundation.layout.PaddingV
         "oneui" -> Triple(Color(0xFF262629), Color.Transparent, 30)
         else -> Triple(Color.Unspecified, Color.Unspecified, 34)
     }
-    if (T.id != "ios26") {
+    val fill = T.wfill
+    if (T.id != "ios26" || fill != null) {
         val sh = RoundedCornerShape(r.dp)
-        var m = Modifier.size(w.dp, h.dp).clip(sh).background(bgc)
+        var m = Modifier.size(w.dp, h.dp).clip(sh).background(fill ?: bgc)
         if (bd != Color.Transparent) m = m.border(if (T.glow) 1.2.dp else 1.dp, Brush.verticalGradient(listOf(bd, bd.copy(alpha = bd.alpha * .25f))), sh)
         Column(m.padding(pad), content = content)
         return

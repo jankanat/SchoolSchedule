@@ -255,7 +255,10 @@ fun SubPage(id: String, st: AppState) {
                         Sec(Tr.t(lang, "style"))
                         StylePicker(st)
                         Sec(Tr.t(lang, "theme"))
-                        Chips(listOf("dark" to Tr.t(lang, "th_dark")), "dark") {}
+                        Chips(listOf("dark" to Tr.t(lang, "th_dark"), "custom" to Tr.t(lang, "th_custom")), st.theme) { th ->
+                            Store.update(ctx) { it.copy(theme = th) }
+                        }
+                        if (st.theme == "custom") { VSpace(12.dp); CustomThemeEditor(st) }
                         IconSetPicker(st)
                     }
                 }
