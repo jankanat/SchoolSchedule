@@ -16,6 +16,7 @@ data class Slot(
     val start: Int,
     val end: Int,
     val replaced: Boolean,
+    val dayIdx: Int = 0,
 )
 
 /** Отображаемые данные предмета: название, эмодзи, цвет. */
@@ -61,7 +62,7 @@ object Sched {
             val lesson: Lesson? = if (o != null) o.lesson else base.getOrNull(i)
             if (lesson == null) continue
             val b = bells.getOrNull(i) ?: continue
-            out += Slot(i, lesson, b.start, b.end, o != null)
+            out += Slot(i, lesson, b.start, b.end, o != null, dow)
         }
         return out
     }
@@ -119,6 +120,27 @@ object Sched {
         val marks = dayLessons(st, d).flatMap { listOf(it.start, it.end) }.filter { it > m }.sorted()
         return if (marks.isNotEmpty()) d.atStartOfDay().plusMinutes(marks.first().toLong())
         else d.plusDays(1).atStartOfDay().plusMinutes(1)
+    }
+
+    /** Подпись дня без уроков: эмодзи, заголовок и ближайший учебный день. */
+    data class IdleInfo(val em: String, val title: String, val day: String)
+
+    fun idle(n: Now, lang: String): IdleInfo {
+        val (em, key) = when (n.phase) {
+            Phase.AFTER -> "✅" to "doneToday"
+            Phase.DAYOFF -> "😴" to "weekend"
+            else -> "💤" to "noLessons"
+        }
+        return IdleInfo(em, Tr.t(lang, key), n.nextDay?.let { dayLabel(lang, n.date, it) } ?: "")
+    }
+
+    /** «08:30–09:15 · каб. 204» с учётом настроек показа времени и кабинета. */
+    fun meta(list: List<Slot>, pos: Int, lang: String, time: Boolean = true, room: Boolean = true, startOnly: Boolean = false): String {
+        val s = list[pos]
+        val p = ArrayList<String>()
+        if (time) p += if (startOnly) Tr.hm(s.start) else Tr.hm(s.start) + "–" + Tr.hm(s.end)
+        if (room) roomLabel(list, pos, lang).takeIf { it.isNotEmpty() }?.let { p += it }
+        return p.joinToString(" · ")
     }
 
     fun dayLabel(lang: String, today: LocalDate, d: LocalDate): String =

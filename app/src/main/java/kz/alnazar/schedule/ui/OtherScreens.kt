@@ -1,0 +1,311 @@
+package kz.alnazar.schedule.ui
+
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kz.alnazar.schedule.data.AppState
+import kz.alnazar.schedule.data.Bell
+import kz.alnazar.schedule.data.Catalog
+import kz.alnazar.schedule.data.Store
+import kz.alnazar.schedule.data.WidgetCfg
+import kz.alnazar.schedule.logic.Sched
+import kz.alnazar.schedule.logic.Tr
+import kz.alnazar.schedule.widget.WidgetUpdater
+
+/* ===================== ВИДЖЕТЫ ===================== */
+
+/** «Обои» рабочего стола из прототипа (.wall): три радиальных пятна на синем. */
+fun Modifier.wall(): Modifier = this.drawBehind {
+    drawRect(Color(0xFF1B2A55))
+    drawRect(Brush.radialGradient(listOf(Color(0xFFFF8A5C), Color.Transparent), Offset(size.width * .18f, size.height * .12f), size.maxDimension * .42f))
+    drawRect(Brush.radialGradient(listOf(Color(0xFF7A5CFF), Color.Transparent), Offset(size.width * .88f, size.height * .28f), size.maxDimension * .48f))
+    drawRect(Brush.radialGradient(listOf(Color(0xFF19C7A4), Color.Transparent), Offset(size.width * .35f, size.height * .92f), size.maxDimension * .52f))
+}
+
+@Composable
+private fun FakeApp(emoji: String) {
+    Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
+        Text(emoji, fontSize = 26.sp)
+    }
+}
+
+@Composable
+fun WidgetsScreen(st: AppState, clock: Long) {
+    val ctx = LocalContext.current
+    val lang = st.appLang
+    val n = remember(st, clock) { Sched.now(st) }
+    val wl = st.widgetLang
+    fun upd(f: (WidgetCfg) -> WidgetCfg) = Store.update(ctx) { it.copy(widget = f(it.widget)) }
+    Page {
+        item { Hdr(Tr.t(lang, "tab_widgets"), Tr.t(lang, "w_sub")) }
+        item {
+            // сетка 4 × 7 клеток по 76dp с промежутком 8dp — как в прототипе
+            val u = 76; val gp = 8
+            fun at(c: Int, r: Int) = Modifier.offset(((c) * (u + gp)).dp, ((r) * (u + gp)).dp)
+            Box(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).wall().padding(vertical = 16.dp), contentAlignment = Alignment.TopCenter) {
+                Box(Modifier.size((4 * u + 3 * gp).dp, (7 * u + 6 * gp).dp)) {
+                    Box(at(0, 0)) { WidgetPreview("4x2", st, n, wl) }
+                    Box(at(0, 2)) { WidgetPreview("2x2", st, n, wl) }
+                    Box(at(2, 2)) { WidgetPreview("2x4", st, n, wl) }
+                    Box(at(0, 4)) { WidgetPreview("2x1", st, n, wl) }
+                    Box(at(0, 5)) { WidgetPreview("1x2", st, n, wl) }
+                    Box(at(1, 5).padding(12.dp)) { FakeApp("📷") }
+                    Box(at(1, 6).padding(12.dp)) { FakeApp("💬") }
+                }
+            }
+        }
+        item {
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Sec(Tr.t(lang, "w_settings"))
+                Group {
+                    Column(Modifier.padding(14.dp)) {
+                        Text(Tr.t(lang, "onLesson"), color = T.tx, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                        Seg(listOf("current" to Tr.t(lang, "opt_current"), "next" to Tr.t(lang, "opt_next")), st.widget.onLesson) { v -> upd { it.copy(onLesson = v) } }
+                    }
+                    RowDivider()
+                    Column(Modifier.padding(14.dp)) {
+                        Text(Tr.t(lang, "onBreak"), color = T.tx, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
+                        Seg(listOf("next" to Tr.t(lang, "opt_next"), "prev" to Tr.t(lang, "opt_prev")), st.widget.onBreak) { v -> upd { it.copy(onBreak = v) } }
+                    }
+                    RowDivider(); TgRow(Tr.t(lang, "w_room"), st.widget.room) { v -> upd { it.copy(room = v) } }
+                    RowDivider(); TgRow(Tr.t(lang, "w_time"), st.widget.time) { v -> upd { it.copy(time = v) } }
+                    RowDivider(); TgRow(Tr.t(lang, "idleNo"), st.widget.idleNoLessons) { v -> upd { it.copy(idleNoLessons = v) } }
+                    RowDivider(); TgRow(Tr.t(lang, "idleNext"), st.widget.idleNextDay) { v -> upd { it.copy(idleNextDay = v) } }
+                }
+                Sec(Tr.t(lang, "w_add"))
+                Card { Text(Tr.t(lang, "w_add_hint"), color = T.tx2, fontSize = 13.5.sp) }
+            }
+        }
+    }
+}
+
+/* ===================== ЗАДАНИЯ (этап 4) ===================== */
+
+@Composable
+fun HwScreen(st: AppState) {
+    val lang = st.appLang
+    var tab by rememberSaveable { mutableStateOf("hw") }
+    Page {
+        item { Hdr(Tr.t(lang, "hw_title")) }
+        item {
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Seg(listOf("hw" to Tr.t(lang, "hw_tab_hw"), "note" to Tr.t(lang, "hw_tab_notes")), tab) { tab = it }
+                Empty(Tr.t(lang, "stage4"))
+            }
+        }
+    }
+}
+
+/* ===================== НАСТРОЙКИ ===================== */
+
+@Composable
+fun SettingsScreen(st: AppState) {
+    val ui = LocalUi.current
+    val ctx = LocalContext.current
+    val lang = st.appLang
+    val later = Tr.t(lang, "later")
+    Page {
+        item { Hdr(Tr.t(lang, "set_title")) }
+        item {
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Sec(Tr.t(lang, "set_look"))
+                Group {
+                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), "iOS 26 · " + Tr.t(lang, "th_dark")) { ui.go("appearance") }
+                    RowDivider()
+                    SetRow("🌐", 0xFF0A84FF, Tr.t(lang, "language"), "${st.appLang.uppercase()} · ${Tr.t(lang, "tab_widgets")}: ${st.widgetLang.uppercase()}") { ui.go("language") }
+                }
+                Sec(Tr.t(lang, "set_school"))
+                Group {
+                    SetRow("🏫", 0xFFFF9F0A, Tr.t(lang, "class_prog"), Tr.t(lang, if (st.program == "kz") "prog_kz" else "prog_ru") + " · ${st.grade} · " + Tr.t(lang, if (st.shift == 2) "shift2" else "shift1")) { ui.go("class") }
+                    RowDivider()
+                    val b = st.bells
+                    SetRow("🔔", 0xFFFF453A, Tr.t(lang, "bells"), if (b.isEmpty()) "" else Tr.hm(b.first().start) + "–" + Tr.hm(b[minOf(6, b.size - 1)].end)) { ui.go("bells") }
+                    RowDivider()
+                    SetRow("🏖️", 0xFF30D158, Tr.t(lang, "holidays"), later, enabled = false) {}
+                    RowDivider()
+                    SetRow("📚", 0xFF5E5CE6, Tr.t(lang, "subjects"), later, enabled = false) {}
+                }
+                Sec(Tr.t(lang, "set_data"))
+                Group {
+                    SetRow("📥", 0xFF32ADE6, Tr.t(lang, "import_title"), "ML Kit · Gemini · $later", enabled = false) {}
+                    RowDivider()
+                    SetRow("💾", 0xFF8E8E93, Tr.t(lang, "backup"), "JSON · $later", enabled = false) {}
+                }
+                Sec(Tr.t(lang, "set_system"))
+                Group {
+                    val ok = WidgetUpdater.canExact(ctx)
+                    SetRow("⏰", 0xFFFF9F0A, Tr.t(lang, "exactAlarm"), Tr.t(lang, if (ok) "exactAlarmOn" else "exactAlarmHint"), enabled = !ok) {
+                        ctx.startActivity(
+                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/* ----- вложенные страницы настроек ----- */
+
+@Composable
+fun SubPage(id: String, st: AppState) {
+    val ui = LocalUi.current
+    val ctx = LocalContext.current
+    val lang = st.appLang
+    val langs = listOf("ru" to "Русский", "kk" to "Қазақша", "en" to "English")
+    Page(bottomNav = false) {
+        when (id) {
+            "language" -> {
+                item { HdrBack(Tr.t(lang, "language")) { ui.back() } }
+                item {
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        Sec(Tr.t(lang, "appLang"))
+                        Chips(langs, st.appLang) { l -> Store.update(ctx) { it.copy(appLang = l) } }
+                        Sec(Tr.t(lang, "widgetLang"))
+                        Chips(langs, st.widgetLang) { l -> Store.update(ctx) { it.copy(widgetLang = l) } }
+                    }
+                }
+            }
+            "class" -> {
+                item { HdrBack(Tr.t(lang, "class_prog")) { ui.back() } }
+                item {
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        Sec(Tr.t(lang, "program"))
+                        Seg(listOf("kz" to Tr.t(lang, "prog_kz"), "ru" to Tr.t(lang, "prog_ru")), st.program) { p -> Store.update(ctx) { it.copy(program = p) } }
+                        Sec(Tr.t(lang, "grade"))
+                        Chips((5..11).map { it to "$it" }, st.grade) { g -> Store.update(ctx) { it.copy(grade = g) } }
+                        Sec(Tr.t(lang, "shift"))
+                        Seg(listOf(1 to Tr.t(lang, "shift1"), 2 to Tr.t(lang, "shift2")), st.shift) { s -> Store.update(ctx) { it.copy(shift = s) } }
+                        Spacer(Modifier.height(12.dp))
+                        Group { TgRow(Tr.t(lang, "sixDays"), st.sixDays) { v -> Store.update(ctx) { it.copy(sixDays = v) } } }
+                        Spacer(Modifier.height(14.dp))
+                        Btn(Tr.t(lang, "regen"), Modifier.fillMaxWidth(), BtnKind.Sec) { ui.open { RegenSheet() } }
+                    }
+                }
+            }
+            "bells" -> {
+                item { HdrBack(Tr.t(lang, "bells")) { ui.back() } }
+                item {
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        Seg(listOf(1 to Tr.t(lang, "shift1"), 2 to Tr.t(lang, "shift2")), st.shift) { s -> Store.update(ctx) { it.copy(shift = s) } }
+                        Spacer(Modifier.height(12.dp))
+                        Group {
+                            st.bells.forEachIndexed { i, b ->
+                                if (i > 0) RowDivider()
+                                Row(
+                                    Modifier.fillMaxWidth().tap { ui.open { BellSheet(i) } }.padding(horizontal = 14.dp, vertical = 15.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(Tr.t(lang, "lessonN", i + 1), color = T.tx, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                    Text(Tr.hm(b.start) + " – " + Tr.hm(b.end), color = T.tx2, fontSize = 15.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else -> {
+                item { HdrBack(Tr.t(lang, "appearance")) { ui.back() } }
+                item {
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        val n = Sched.now(st)
+                        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).wall().padding(14.dp), contentAlignment = Alignment.Center) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                WidgetPreview("2x2", st, n, st.widgetLang)
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    WidgetPreview("2x1", st, n, st.widgetLang)
+                                    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) { FakeApp("📷"); FakeApp("💬") }
+                                }
+                            }
+                        }
+                        Sec("Стиль")
+                        Chips(listOf("ios26" to "iOS 26", "ios18" to "iOS 18", "pixel" to "Pixel OS", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9"), "ios26") {}
+                        Sec("Тема")
+                        Chips(listOf("dark" to Tr.t(lang, "th_dark")), "dark") {}
+                        Card(Modifier.padding(top = 14.dp)) { Text(Tr.t(lang, "styles_soon"), color = T.tx2, fontSize = 13.5.sp) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.RegenSheet() {
+    val ctx = LocalContext.current
+    val ui = LocalUi.current
+    val st = Store.state.value
+    val lang = st.appLang
+    SheetTitle(Tr.t(lang, "regenAsk", st.grade))
+    Btns {
+        Btn(Tr.t(lang, "yes"), Modifier.weight(1f)) {
+            Store.update(ctx) { it.copy(week = Catalog.genTimetable(it.program, it.grade, it.sixDays), overrides = emptyList()) }
+            ui.close()
+        }
+        Btn(Tr.t(lang, "cancel"), Modifier.weight(1f), BtnKind.Ghost) { ui.close() }
+    }
+}
+
+private fun parseHm(s: String): Int? {
+    val m = Regex("""^\s*(\d{1,2})[:.](\d{2})\s*$""").find(s) ?: return null
+    val h = m.groupValues[1].toInt(); val mi = m.groupValues[2].toInt()
+    return if (h in 0..23 && mi in 0..59) h * 60 + mi else null
+}
+
+@Composable
+private fun ColumnScope.BellSheet(i: Int) {
+    val ctx = LocalContext.current
+    val ui = LocalUi.current
+    val st = remember { Store.state.value }
+    val lang = st.appLang
+    val b = st.bells.getOrNull(i) ?: return
+    var s by remember { mutableStateOf(Tr.hm(b.start)) }
+    var e by remember { mutableStateOf(Tr.hm(b.end)) }
+    val ps = parseHm(s); val pe = parseHm(e)
+    val valid = ps != null && pe != null && pe > ps
+    SheetTitle(Tr.t(lang, "lessonN", i + 1))
+    Lab(Tr.t(lang, "start")); Field(s, { s = it.take(5) }, "08:30")
+    Lab(Tr.t(lang, "end")); Field(e, { e = it.take(5) }, "09:15")
+    Btns {
+        Btn(Tr.t(lang, "save"), Modifier.weight(1f), enabled = valid) {
+            Store.update(ctx) { a ->
+                fun upd(list: List<Bell>) = list.mapIndexed { k, x -> if (k == i) Bell(ps!!, pe!!) else x }
+                if (a.shift == 2) a.copy(bells2 = upd(a.bells2)) else a.copy(bells1 = upd(a.bells1))
+            }
+            ui.close()
+        }
+        Btn(Tr.t(lang, "cancel"), Modifier.weight(1f), BtnKind.Ghost) { ui.close() }
+    }
+}

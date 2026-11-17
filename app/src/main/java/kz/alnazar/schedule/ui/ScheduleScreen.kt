@@ -1,27 +1,26 @@
 package kz.alnazar.schedule.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,209 +48,198 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 
-/** Строка редактора: номер урока, урок (или пусто), признак замены. */
-private data class EdRow(val idx: Int, val lesson: Lesson?, val replaced: Boolean)
-
-/** Что редактируем в диалоге. */
-private data class Edit(val idx: Int, val lesson: Lesson?, val isNew: Boolean)
+private val MS = mapOf(
+    "ru" to listOf("янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"),
+    "kk" to listOf("қаң", "ақп", "нау", "сәу", "мам", "мау", "шіл", "там", "қыр", "қаз", "қар", "жел"),
+    "en" to listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
+)
 
 @Composable
 fun ScheduleScreen(st: AppState) {
-    val ctx = LocalContext.current
+    val ui = LocalUi.current
     val lang = st.appLang
     val today = LocalDate.now()
-    var day by rememberSaveable { mutableStateOf((today.dayOfWeek.value - 1).coerceAtMost(st.schoolDays - 1)) }
-    if (day >= st.schoolDays) day = 0
-    var weekMode by rememberSaveable { mutableStateOf(false) }
-    var edit by remember { mutableStateOf<Edit?>(null) }
+    val mon = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+    val wk = mon.toString()
+    val nd = st.schoolDays
+    var sel by rememberSaveable { mutableStateOf((today.dayOfWeek.value - 1).coerceAtMost(nd - 1)) }
+    if (sel >= nd) sel = 0
+    var view by rememberSaveable { mutableStateOf("days") }
+    val swaps = st.overrides.count { it.week == wk }
+    val end = mon.plusDays((nd - 1).toLong())
+    val ms = MS[lang] ?: MS.getValue("ru")
+    val range = "${mon.dayOfMonth} ${ms[mon.monthValue - 1]} – ${end.dayOfMonth} ${ms[end.monthValue - 1]}"
 
-    val monday = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    val wk = monday.toString()
-    val base = st.week.getOrNull(day) ?: emptyList()
-    val ov = st.overrides.filter { it.week == wk && it.day == day }
-    val rows: List<EdRow> = if (!weekMode) base.mapIndexed { i, l -> EdRow(i, l, false) } else {
-        val n = maxOf(base.size, (ov.maxOfOrNull { it.idx } ?: -1) + 1)
-        (0 until n).map { i ->
-            val o = ov.firstOrNull { it.idx == i }
-            if (o != null) EdRow(i, o.lesson, true) else EdRow(i, base.getOrNull(i), false)
-        }
-    }
+    fun edit(dayIdx: Int, i: Int) { ui.open { LessonSheet(dayIdx, i, wk) } }
 
-    LazyColumn(Modifier.fillMaxSize()) {
+    Page {
+        item { Hdr(Tr.t(lang, "tab_schedule"), Tr.t(lang, "week") + " " + range + if (swaps > 0) " · " + Tr.t(lang, "swaps", swaps) else "") }
         item {
-            Text(Tr.t(lang, "tab_schedule"), color = Pal.tx, fontSize = 30.sp, fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(start = 20.dp, top = 16.dp, end = 20.dp))
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Seg(listOf("days" to Tr.t(lang, "view_days"), "table" to Tr.t(lang, "view_table")), view) { view = it }
+                Spacer(Modifier.height(12.dp))
+            }
         }
-        item {
-            ChipRow(
-                listOf(false to Tr.t(lang, "permanent"), true to Tr.t(lang, "thisWeek")),
-                weekMode,
-            ) { weekMode = it }
-        }
-        item {
-            ChipRow(
-                (0 until st.schoolDays).map { it to Tr.dayShort(lang, it) },
-                day,
-            ) { day = it }
-        }
-        if (weekMode) item {
-            val date = monday.plusDays(day.toLong())
-            Text(
-                Tr.dateTitle(lang, date), color = Pal.tx2, fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-            )
-        }
-        if (rows.isEmpty()) item {
-            Text(Tr.t(lang, "emptyDay"), color = Pal.tx2, fontSize = 15.sp, modifier = Modifier.padding(20.dp))
-        }
-        items(rows) { r ->
-            val bell = st.bells.getOrNull(r.idx)
-            val sameRoom = r.idx > 0 && r.lesson != null && rows.getOrNull(r.idx - 1)?.lesson?.room?.trim() == r.lesson.room.trim() && r.lesson.room.isNotBlank()
-            Row(
-                Modifier.padding(horizontal = 14.dp, vertical = 4.dp).fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp)).background(Pal.card)
-                    .clickable { edit = Edit(r.idx, r.lesson, false) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("${r.idx + 1}", color = Pal.tx2, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(18.dp))
-                if (r.lesson != null) {
-                    val v = Sched.subj(st, r.lesson.subj, lang)
-                    EmojiTile(v.emoji, v.color, 38.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(v.name, color = Pal.tx, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        val room = when {
-                            r.lesson.room.isBlank() -> ""
-                            sameRoom -> Tr.t(lang, "sameRoom")
-                            r.lesson.room.first().isDigit() -> Tr.t(lang, "room", r.lesson.room)
-                            else -> r.lesson.room
+        if (view == "days") {
+            item {
+                Row(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (0 until nd).forEach { k ->
+                        val on = k == sel
+                        val has = st.overrides.any { it.week == wk && it.day == k }
+                        Box(
+                            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if (on) T.acc else T.s1).tap { sel = k }.padding(vertical = 9.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(Tr.dayShort(lang, k), color = if (on) T.accTx else T.tx2, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                            if (has) Box(Modifier.align(Alignment.TopEnd).padding(end = 6.dp).size(6.dp).background(Color(0xFFFF9F0A), CircleShape))
                         }
-                        val tag = if (r.replaced) " · " + Tr.t(lang, "replaced") else ""
-                        if (room.isNotEmpty() || tag.isNotEmpty())
-                            Text(room + tag, color = if (r.replaced) Pal.warn else Pal.tx2, fontSize = 13.sp, maxLines = 1)
                     }
-                } else {
-                    Text("—  " + Tr.t(lang, "cancelled"), color = Pal.red, fontSize = 15.sp, modifier = Modifier.weight(1f).padding(start = 10.dp))
-                }
-                if (bell != null) Column(horizontalAlignment = Alignment.End) {
-                    Text(Tr.hm(bell.start), color = Pal.tx, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                    Text(Tr.hm(bell.end), color = Pal.tx2, fontSize = 13.sp)
                 }
             }
-        }
-        item {
-            Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (rows.size < 10) TextButton(onClick = { edit = Edit(rows.size, null, true) }) { Text("+ " + Tr.t(lang, "addLesson"), color = Pal.acc) }
-                if (weekMode && ov.isNotEmpty()) TextButton(onClick = {
-                    Store.update(ctx) { s -> s.copy(overrides = s.overrides.filterNot { it.week == wk && it.day == day }) }
-                }) { Text(Tr.t(lang, "resetWeek"), color = Pal.warn) }
+            val date = mon.plusDays(sel.toLong())
+            val L = Sched.dayLessons(st, date)
+            if (L.isEmpty()) item { Empty(Tr.t(lang, "emptyDay")) }
+            itemsIndexed(L) { i, s ->
+                Box(Modifier.padding(horizontal = 16.dp)) { SlotRow(st, L, i, LsState.Normal, lang) { edit(sel, s.idx) } }
             }
+            item {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    Btn("+ " + Tr.t(lang, "addLesson"), Modifier.fillMaxWidth(), BtnKind.Sec) {
+                        val n = maxOf(st.week.getOrNull(sel)?.size ?: 0, (L.maxOfOrNull { it.idx } ?: -1) + 1)
+                        edit(sel, n)
+                    }
+                }
+            }
+        } else {
+            item { Box(Modifier.padding(horizontal = 16.dp)) { WeekTable(st, mon, nd, lang) { d, i -> edit(d, i) } } }
         }
-        item { Spacer(Modifier.height(24.dp)) }
-    }
-
-    edit?.let { e ->
-        LessonDialog(
-            st = st, e = e, weekMode = weekMode,
-            onDismiss = { edit = null },
-            onSave = { l ->
-                Store.update(ctx) { s ->
-                    if (!weekMode) {
-                        val days = s.week.map { it.toMutableList() }.toMutableList()
-                        while (days.size < 6) days += mutableListOf<Lesson>()
-                        val d = days[day]
-                        if (e.idx < d.size) d[e.idx] = l else d += l
-                        s.copy(week = days)
-                    } else {
-                        val rest = s.overrides.filterNot { it.week == wk && it.day == day && it.idx == e.idx }
-                        s.copy(overrides = rest + Override(wk, day, e.idx, l))
-                    }
-                }
-                edit = null
-            },
-            onRemove = {
-                Store.update(ctx) { s ->
-                    if (!weekMode) {
-                        val days = s.week.map { it.toMutableList() }.toMutableList()
-                        if (e.idx < days[day].size) days[day].removeAt(e.idx)
-                        s.copy(week = days)
-                    } else {
-                        // отменить урок только на эту неделю
-                        val rest = s.overrides.filterNot { it.week == wk && it.day == day && it.idx == e.idx }
-                        s.copy(overrides = rest + Override(wk, day, e.idx, null))
-                    }
-                }
-                edit = null
-            },
-        )
     }
 }
 
+/** Таблица недели (.tbl): дни по столбцам, номера уроков по строкам. */
 @Composable
-private fun LessonDialog(
-    st: AppState, e: Edit, weekMode: Boolean,
-    onDismiss: () -> Unit, onSave: (Lesson) -> Unit, onRemove: () -> Unit,
-) {
-    val lang = st.appLang
-    var subj by remember { mutableStateOf(e.lesson?.subj ?: "") }
-    var room by remember { mutableStateOf(e.lesson?.room ?: "") }
-    // предметы программы класса — первыми, остальные каталога — следом, затем свои
-    val prog = Catalog.programSubjects(st.program, st.grade)
-    val ids = prog + Catalog.subjects.map { it.id }.filterNot { it in prog } + st.custom.map { it.id }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Pal.card,
-        title = { Text(Tr.t(lang, "lessonN", e.idx + 1), color = Pal.tx) },
-        text = {
-            Column {
-                Text(Tr.t(lang, "subject"), color = Pal.tx2, fontSize = 13.sp)
-                Spacer(Modifier.height(6.dp))
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.heightIn(max = 300.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    items(ids) { id ->
-                        val v = Sched.subj(st, id, lang)
-                        val sel = id == subj
-                        Column(
-                            Modifier.clip(RoundedCornerShape(14.dp))
-                                .background(if (sel) Pal.acc.copy(alpha = .35f) else Pal.card2)
-                                .clickable {
-                                    subj = id
-                                    if (room.isBlank()) room = Catalog.roomOf(id)
+private fun WeekTable(st: AppState, mon: LocalDate, nd: Int, lang: String, onEdit: (Int, Int) -> Unit) {
+    val lists = (0 until nd).map { Sched.dayLessons(st, mon.plusDays(it.toLong())) }
+    val rows = minOf(8, (lists.maxOfOrNull { l -> (l.maxOfOrNull { it.idx } ?: -1) + 1 } ?: 0) + 1)
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Spacer(Modifier.width(22.dp))
+            (0 until nd).forEach { k ->
+                Text(Tr.dayShort(lang, k), color = T.tx2, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).padding(vertical = 4.dp))
+            }
+        }
+        for (i in 0 until rows) {
+            Row(horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("${i + 1}", color = T.tx2, fontSize = 12.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, modifier = Modifier.width(22.dp))
+                (0 until nd).forEach { k ->
+                    val x = lists[k].firstOrNull { it.idx == i }
+                    val last = (lists[k].maxOfOrNull { it.idx } ?: -1) + 1
+                    val shape = RoundedCornerShape(12.dp)
+                    when {
+                        x != null -> {
+                            val v = Sched.subj(st, x.lesson.subj, lang)
+                            Box(
+                                Modifier.weight(1f).heightIn(min = 52.dp).glass(shape).tap { onEdit(k, i) }.padding(vertical = 6.dp, horizontal = 2.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Tile(v.emoji, v.color, 24.dp)
+                                    Text(v.name.take(6), color = T.tx, fontSize = 10.5.sp, maxLines = 1)
                                 }
-                                .padding(6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text(v.emoji, fontSize = 20.sp)
-                            Text(v.name, color = Pal.tx, fontSize = 11.sp, maxLines = 2, textAlign = TextAlign.Center, lineHeight = 13.sp)
+                                if (x.replaced) Box(Modifier.align(Alignment.TopEnd).size(6.dp).background(Color(0xFFFF9F0A), CircleShape))
+                            }
                         }
+                        i == last -> Box(
+                            Modifier.weight(1f).height(52.dp).clip(shape).border(1.5.dp, T.line, shape).tap { onEdit(k, i) },
+                            contentAlignment = Alignment.Center,
+                        ) { Text("+", color = T.tx2, fontSize = 18.sp) }
+                        else -> Spacer(Modifier.weight(1f).height(52.dp))
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = room, onValueChange = { room = it.take(20) },
-                    label = { Text(Tr.t(lang, "roomField")) }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
-        },
-        confirmButton = {
-            TextButton(enabled = subj.isNotEmpty(), onClick = { onSave(Lesson(subj, room.trim())) }) {
-                Text(Tr.t(lang, "save"), color = if (subj.isNotEmpty()) Pal.acc else Pal.tx3)
+        }
+    }
+}
+
+/** Шторка урока: выбор предмета, кабинет, «постоянно / только эта неделя». */
+@Composable
+private fun ColumnScope.LessonSheet(dayIdx: Int, i: Int, wk: String) {
+    val ctx = LocalContext.current
+    val ui = LocalUi.current
+    val st = remember { Store.state.value }
+    val lang = st.appLang
+    val base = st.week.getOrNull(dayIdx)?.getOrNull(i)
+    val ov = st.overrides.firstOrNull { it.week == wk && it.day == dayIdx && it.idx == i }
+    val cur: Lesson? = if (ov != null) ov.lesson else base
+    val isNew = base == null && ov == null
+    var subj by remember { mutableStateOf(cur?.subj ?: "") }
+    var room by remember { mutableStateOf(cur?.room ?: "") }
+    var all by remember { mutableStateOf(false) }
+    var scope by remember { mutableStateOf(if (ov != null) "week" else "perm") }
+
+    val prog = Catalog.programSubjects(st.program, st.grade)
+    var ids = if (all) Catalog.subjects.map { it.id } + st.custom.map { it.id } else prog + st.custom.map { it.id }
+    if (subj.isNotEmpty() && subj !in ids) ids = listOf(subj) + ids
+
+    SheetTitle(Tr.t(lang, "lesson_title", i + 1, Tr.dayLong(lang, dayIdx)))
+    Lab(Tr.t(lang, "subject"))
+    LazyVerticalGrid(
+        GridCells.Fixed(3), Modifier.fillMaxWidth().heightIn(max = 210.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        items(ids) { id ->
+            val v = Sched.subj(st, id, lang)
+            val on = id == subj
+            val shape = RoundedCornerShape(14.dp)
+            Column(
+                Modifier.clip(shape).background(if (on) T.accSoft else T.s2).border(2.dp, if (on) T.acc else Color.Transparent, shape)
+                    .tap { subj = id; if (room.isBlank()) room = Catalog.roomOf(id) }.padding(horizontal = 4.dp, vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Tile(v.emoji, v.color, 32.dp)
+                Text(v.name, color = T.tx, fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-        },
-        dismissButton = {
-            Row {
-                if (!e.isNew) TextButton(onClick = onRemove) {
-                    Text(Tr.t(lang, if (weekMode) "cancelLesson" else "delete"), color = Pal.red)
+        }
+    }
+    Row(Modifier.padding(top = 8.dp)) { Chip(Tr.t(lang, "all_subjects"), all) { all = !all } }
+    Lab(Tr.t(lang, "roomField"))
+    Field(room, { room = it.take(20) }, Tr.t(lang, "room_ph"))
+    if (!isNew) {
+        Lab(Tr.t(lang, "apply_to"))
+        Seg(listOf("perm" to Tr.t(lang, "perm"), "week" to Tr.t(lang, "thisWeek")), scope) { scope = it }
+    }
+    Btns {
+        Btn(Tr.t(lang, "save"), Modifier.weight(1f), enabled = subj.isNotEmpty()) {
+            val l = Lesson(subj, room.trim())
+            Store.update(ctx) { s ->
+                if (scope == "week" && !isNew) {
+                    s.copy(overrides = s.overrides.filterNot { it.week == wk && it.day == dayIdx && it.idx == i } + Override(wk, dayIdx, i, l))
+                } else {
+                    val days = s.week.map { it.toMutableList() }.toMutableList()
+                    while (days.size < 6) days += mutableListOf<Lesson>()
+                    val d = days[dayIdx]
+                    if (i < d.size) d[i] = l else d += l
+                    s.copy(week = days)
                 }
-                TextButton(onClick = onDismiss) { Text(Tr.t(lang, "cancel"), color = Pal.tx2) }
             }
-        },
-    )
+            ui.close()
+        }
+        if (ov != null) Btn(Tr.t(lang, "remove_swap"), Modifier.weight(1f), BtnKind.Sec) {
+            Store.update(ctx) { s -> s.copy(overrides = s.overrides.filterNot { it.week == wk && it.day == dayIdx && it.idx == i }) }
+            ui.close()
+        }
+        if (!isNew) Btn("🗑", kind = BtnKind.Danger) {
+            Store.update(ctx) { s ->
+                if (scope == "week") {
+                    s.copy(overrides = s.overrides.filterNot { it.week == wk && it.day == dayIdx && it.idx == i } + Override(wk, dayIdx, i, null))
+                } else {
+                    val days = s.week.map { it.toMutableList() }.toMutableList()
+                    if (i < days[dayIdx].size) days[dayIdx].removeAt(i)
+                    s.copy(week = days)
+                }
+            }
+            ui.close()
+        }
+    }
 }

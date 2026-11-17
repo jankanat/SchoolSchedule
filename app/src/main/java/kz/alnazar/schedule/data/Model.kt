@@ -29,6 +29,8 @@ data class WidgetCfg(
     val onBreak: String = "next",       // next | prev
     val idleNoLessons: Boolean = true,  // надпись «Уроков нет»
     val idleNextDay: Boolean = true,    // таблица ближайшего учебного дня
+    val time: Boolean = true,           // показывать время урока
+    val room: Boolean = true,           // показывать кабинет
 )
 
 @Serializable

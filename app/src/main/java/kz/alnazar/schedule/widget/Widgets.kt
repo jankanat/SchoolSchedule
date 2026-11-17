@@ -62,6 +62,8 @@ abstract class LessonWidget : GlanceAppWidget() {
 
     @Composable
     abstract fun Body(s: AppState, n: Now, lang: String)
+    open val padH: Dp = 12.dp
+    open val padV: Dp = 12.dp
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         Store.ensure(context)
@@ -72,211 +74,315 @@ abstract class LessonWidget : GlanceAppWidget() {
             Box(
                 GlanceModifier.fillMaxSize()
                     .background(ImageProvider(R.drawable.glass_dark))
-                    .cornerRadius(26.dp)
+                    .cornerRadius(34.dp)
                     .clickable(actionStartActivity<MainActivity>())
-                    .padding(12.dp),
+                    .padding(horizontal = padH, vertical = padV),
             ) { Body(s, n, s.widgetLang) }
         }
     }
 }
 
-/* ===== Общие кусочки ===== */
+
+/* ===== Общие кусочки (разметка 1:1 с прототипом: .lb, .nm, .mt, .ic) ===== */
+
+private val LINE = ColorProvider(Color(0x1FFFFFFF))
+private val SOFT = Color(0x2B0A84FF)          // acc-soft
+private val COLBG = Color(0x12FFFFFF)         // tx 7%
 
 @Composable
-private fun Tile(s: AppState, slot: Slot, lang: String, size: Dp, font: TextUnit) {
-    val v = Sched.subj(s, slot.lesson.subj, lang)
+private fun TileE(emoji: String, color: Long, size: Dp) {
     Box(
-        GlanceModifier.size(size).background(Color(v.color).copy(alpha = .30f)).cornerRadius(size / 3.5f),
+        GlanceModifier.size(size).background(Color(color).copy(alpha = .24f)).cornerRadius(size * .3f),
         contentAlignment = Alignment.Center,
-    ) { Text(v.emoji, style = TextStyle(fontSize = font)) }
+    ) { Text(emoji, style = TextStyle(fontSize = (size.value * .55f).sp)) }
+}
+
+@Composable
+private fun TileS(s: AppState, slot: Slot, lang: String, size: Dp) {
+    val v = Sched.subj(s, slot.lesson.subj, lang); TileE(v.emoji, v.color, size)
 }
 
 private fun name(s: AppState, slot: Slot, lang: String) = Sched.subj(s, slot.lesson.subj, lang).name
-private fun time(slot: Slot) = Tr.hm(slot.start) + "–" + Tr.hm(slot.end)
-private fun meta(n: Now, pos: Int, lang: String, withTime: Boolean = true): String {
-    val slot = n.today[pos]
-    val room = Sched.roomLabel(n.today, pos, lang)
-    val t = if (withTime) time(slot) else Tr.hm(slot.start)
-    return if (room.isEmpty()) t else "$t · $room"
+
+/** Подпись-метка: слева акцентом капсом, справа серым. */
+@Composable
+private fun Lb(a: String, b: String = "", size: TextUnit = 10.sp, center: Boolean = false) {
+    Row(GlanceModifier.fillMaxWidth(), horizontalAlignment = if (center) Alignment.CenterHorizontally else Alignment.Start, verticalAlignment = Alignment.Bottom) {
+        Text(a.uppercase(), style = st(size, ACC, bold = true), maxLines = 2, modifier = if (b.isNotEmpty()) GlanceModifier.defaultWeight() else GlanceModifier)
+        if (b.isNotEmpty()) Text(b, style = st(size, TX2), maxLines = 1)
+    }
 }
 
-/** Какой урок главный для большого блока и как его подписать. */
-private fun mainPos(n: Now): Int = when (n.phase) {
+@Composable
+private fun Mt(text: String, size: TextUnit = 10.5.sp, lines: Int = 1) {
+    if (text.isNotEmpty()) Text(text, style = st(size, TX2), maxLines = lines)
+}
+
+@Composable
+private fun Big(em: String, title: String) {
+    Column(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
+        Text(em, style = TextStyle(fontSize = 30.sp))
+        Text(title, style = st(15.sp, bold = true), maxLines = 2)
+    }
+}
+
+@Composable
+private fun Hd(b: String, s: String) {
+    Row(GlanceModifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
+        Text(b, style = st(15.sp, bold = true), maxLines = 1, modifier = GlanceModifier.defaultWeight())
+        if (s.isNotEmpty()) Text(s, style = st(10.5.sp, TX2), maxLines = 1)
+    }
+}
+
+/** до какого времени идёт урок / когда начнётся следующий (вместо обратного отсчёта — виджет обновляется по звонкам) */
+private fun tillCur(n: Now, lang: String) = Tr.t(lang, "till", Tr.hm(n.today[n.cur].end))
+private fun atNext(n: Now) = Tr.hm(n.today[n.next].start)
+
+private fun live(n: Now) = n.phase == Phase.LESSON || n.phase == Phase.BREAK || n.phase == Phase.BEFORE
+
+/* ===== 2×2: сейчас + далее ===== */
+class W22 : LessonWidget() {
+    @Composable
+    override fun Body(s: AppState, n: Now, lang: String) {
+        val cfg = s.widget; val L = n.today
+        Column(GlanceModifier.fillMaxSize()) {
+            if (!live(n)) {
+                val I = Sched.idle(n, lang); val nd = n.nextDayLessons
+                Lb(if (cfg.idleNoLessons) I.title else I.day, if (cfg.idleNoLessons) I.day else "")
+                if (cfg.idleNextDay && nd.isNotEmpty()) {
+                    nd.take(4).forEach { x -> MiniRow(s, x, lang) }
+                    if (nd.size > 4) Mt("+${nd.size - 4}")
+                } else Big(I.em, I.title)
+                return@Column
+            }
+            if (n.phase == Phase.LESSON) {
+                Lb(Tr.t(lang, "now"), tillCur(n, lang))
+                Row(GlanceModifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TileS(s, L[n.cur], lang, 28.dp)
+                    Spacer(GlanceModifier.width(9.dp))
+                    Column {
+                        Text(name(s, L[n.cur], lang), style = st(15.sp, bold = true), maxLines = 2)
+                        Mt(Sched.meta(L, n.cur, lang, cfg.time, cfg.room))
+                    }
+                }
+            } else {
+                Lb(Tr.t(lang, if (n.phase == Phase.BEFORE) "soon" else "break"), atNext(n))
+                Row(GlanceModifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TileE("☕", 0xFFFF9F0A, 32.dp)
+                    Spacer(GlanceModifier.width(9.dp))
+                    Column {
+                        Text(Tr.t(lang, "break"), style = st(15.sp, bold = true), maxLines = 1)
+                        Mt(Tr.t(lang, "next") + ": " + atNext(n))
+                    }
+                }
+            }
+            Spacer(GlanceModifier.defaultWeight())
+            Box(GlanceModifier.fillMaxWidth().height(1.dp).background(LINE)) {}
+            Spacer(GlanceModifier.height(2.dp))
+            if (n.next >= 0) {
+                val x = L[n.next]
+                Lb(Tr.t(lang, "next"))
+                Row(GlanceModifier.padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TileS(s, x, lang, 16.dp)
+                    Spacer(GlanceModifier.width(6.dp))
+                    Text(name(s, x, lang), style = st(12.5.sp, bold = true), maxLines = 1)
+                }
+                Mt(Sched.meta(L, n.next, lang, cfg.time, cfg.room))
+            } else Mt(Tr.t(lang, "lastLesson"))
+        }
+    }
+}
+
+@Composable
+private fun MiniRow(s: AppState, x: Slot, lang: String) {
+    Row(GlanceModifier.fillMaxWidth().padding(top = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("${x.idx + 1}", style = st(9.5.sp, TX2))
+        Spacer(GlanceModifier.width(6.dp))
+        TileS(s, x, lang, 18.dp)
+        Spacer(GlanceModifier.width(6.dp))
+        Text(name(s, x, lang), style = st(11.5.sp, bold = true), maxLines = 1, modifier = GlanceModifier.defaultWeight())
+        Text(Tr.hm(x.start), style = st(9.5.sp, TX2), maxLines = 1)
+    }
+}
+
+/* ===== 2×1 и 1×2: один урок, что именно — по настройке ===== */
+internal data class Pick(val pos: Int, val label: String)
+
+internal fun pickSmall(s: AppState, n: Now, lang: String): Pick? = when (n.phase) {
+    Phase.LESSON -> if (s.widget.onLesson == "next" && n.next >= 0) Pick(n.next, Tr.t(lang, "next"))
+                    else Pick(n.cur, Tr.t(lang, "now"))
+    Phase.BREAK -> if (s.widget.onBreak == "prev" && n.prev >= 0) Pick(n.prev, Tr.t(lang, "break") + " · " + Tr.t(lang, "prev").lowercase())
+                   else Pick(n.next, Tr.t(lang, "break") + " · " + Tr.t(lang, "next").lowercase())
+    Phase.BEFORE -> Pick(n.next, Tr.t(lang, "soon") + " · " + Tr.t(lang, "next").lowercase())
+    else -> null
+}
+
+internal fun mainPos(n: Now): Int = when (n.phase) {
     Phase.LESSON -> n.cur
     Phase.BREAK, Phase.BEFORE -> n.next
     else -> -1
 }
 
-private fun mainLabel(n: Now, lang: String) = when (n.phase) {
-    Phase.LESSON -> Tr.t(lang, "now")
-    Phase.BREAK -> Tr.t(lang, "break") + " · " + Tr.t(lang, "next").lowercase()
-    Phase.BEFORE -> Tr.t(lang, "before") + " · " + Tr.t(lang, "next").lowercase()
-    else -> ""
-}
-
-/** День без уроков: надпись «Уроков нет» и/или таблица ближайшего учебного дня (переключатели в настройках). */
-@Composable
-private fun Idle(s: AppState, n: Now, lang: String, maxRows: Int, compact: Boolean = false) {
-    val title = when (n.phase) {
-        Phase.AFTER -> "✅ " + Tr.t(lang, "doneToday")
-        Phase.DAYOFF -> "😴 " + Tr.t(lang, "weekend")
-        else -> "💤 " + Tr.t(lang, "noLessons")
-    }
-    Column(GlanceModifier.fillMaxSize()) {
-        if (s.widget.idleNoLessons) Text(title, style = st(if (compact) 12.sp else 14.sp, bold = true), maxLines = 1)
-        val nd = n.nextDay
-        if (s.widget.idleNextDay && nd != null && n.nextDayLessons.isNotEmpty() && maxRows > 0) {
-            if (s.widget.idleNoLessons) Spacer(GlanceModifier.height(6.dp))
-            Text(Sched.dayLabel(lang, n.date, nd), style = st(11.sp, ACC, bold = true), maxLines = 1)
-            Spacer(GlanceModifier.height(3.dp))
-            n.nextDayLessons.take(maxRows).forEach { slot ->
-                Row(GlanceModifier.fillMaxWidth().padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(Tr.hm(slot.start), style = st(10.sp, TX2), maxLines = 1)
-                    Spacer(GlanceModifier.width(6.dp))
-                    Text(Sched.subj(s, slot.lesson.subj, lang).emoji + " " + name(s, slot, lang), style = st(12.sp), maxLines = 1)
-                }
-            }
-        }
-    }
-}
-
-/** Большой блок «сейчас»: плитка, название, время и кабинет. */
-@Composable
-private fun MainBlock(s: AppState, n: Now, lang: String) {
-    val p = mainPos(n)
-    val slot = n.today[p]
-    Text(mainLabel(n, lang), style = st(11.sp, ACC, bold = true), maxLines = 1)
-    Spacer(GlanceModifier.height(6.dp))
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Tile(s, slot, lang, 28.dp, 15.sp)
-        Spacer(GlanceModifier.width(8.dp))
-        Column {
-            Text(name(s, slot, lang), style = st(15.sp, bold = true), maxLines = 2)
-        }
-    }
-    Spacer(GlanceModifier.height(3.dp))
-    Text(meta(n, p, lang), style = st(11.sp, TX2), maxLines = 2)
-}
-
-/* ===== 2×2: текущий и следующий урок ===== */
-class W22 : LessonWidget() {
-    @Composable
-    override fun Body(s: AppState, n: Now, lang: String) {
-        val p = mainPos(n)
-        if (p < 0) { Idle(s, n, lang, 3); return }
-        Column(GlanceModifier.fillMaxSize()) {
-            MainBlock(s, n, lang)
-            Spacer(GlanceModifier.defaultWeight())
-            val after = p + 1
-            if (after < n.today.size) {
-                val slot = n.today[after]
-                Text(Tr.t(lang, "next"), style = st(10.sp, TX3, bold = true), maxLines = 1)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(Sched.subj(s, slot.lesson.subj, lang).emoji + " " + name(s, slot, lang), style = st(12.sp, bold = true), maxLines = 1,
-                        modifier = GlanceModifier.defaultWeight())
-                    Text(" " + Tr.hm(slot.start), style = st(11.sp, TX2), maxLines = 1)
-                }
-            }
-        }
-    }
-}
-
-/* ===== 2×1 и 1×2: один урок, что именно — по настройке ===== */
-private data class Pick(val pos: Int, val label: String)
-
-private fun pickSmall(s: AppState, n: Now, lang: String): Pick? = when (n.phase) {
-    Phase.LESSON -> if (s.widget.onLesson == "next" && n.next >= 0) Pick(n.next, Tr.t(lang, "next"))
-                    else Pick(n.cur, Tr.t(lang, "now"))
-    Phase.BREAK -> if (s.widget.onBreak == "prev" && n.prev >= 0) Pick(n.prev, Tr.t(lang, "break") + " · " + Tr.t(lang, "prev").lowercase())
-                   else Pick(n.next, Tr.t(lang, "break") + " · " + Tr.t(lang, "next").lowercase())
-    Phase.BEFORE -> Pick(n.next, Tr.t(lang, "next"))
-    else -> null
-}
-
 class W21 : LessonWidget() {
+    override val padV: Dp = 10.dp
     @Composable
     override fun Body(s: AppState, n: Now, lang: String) {
-        val pk = pickSmall(s, n, lang)
-        if (pk == null) { Idle(s, n, lang, 1, compact = true); return }
-        val slot = n.today[pk.pos]
+        val cfg = s.widget
         Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-            Tile(s, slot, lang, 30.dp, 16.sp)
-            Spacer(GlanceModifier.width(8.dp))
+            if (!live(n)) {
+                val I = Sched.idle(n, lang); val nd = n.nextDayLessons
+                if (cfg.idleNextDay && nd.isNotEmpty()) {
+                    val f = nd.first()
+                    TileS(s, f, lang, 30.dp)
+                    Spacer(GlanceModifier.width(10.dp))
+                    Column(GlanceModifier.defaultWeight()) {
+                        Lb(if (cfg.idleNoLessons) I.title else I.day, if (cfg.idleNoLessons) I.day else "")
+                        Text(name(s, f, lang), style = st(14.5.sp, bold = true), maxLines = 1)
+                        Mt(Tr.t(lang, "lessonsCnt", nd.size) + " · " + Tr.t(lang, "from", Tr.hm(f.start)))
+                    }
+                } else {
+                    TileE(I.em, 0xFF8E8E93, 36.dp)
+                    Spacer(GlanceModifier.width(10.dp))
+                    Column(GlanceModifier.defaultWeight()) { Lb(I.day); Text(I.title, style = st(14.5.sp, bold = true), maxLines = 1) }
+                }
+                return@Row
+            }
+            val p = pickSmall(s, n, lang) ?: return@Row
+            val x = n.today[p.pos]
+            TileS(s, x, lang, 30.dp)
+            Spacer(GlanceModifier.width(10.dp))
             Column(GlanceModifier.defaultWeight()) {
-                Text(pk.label, style = st(10.sp, ACC, bold = true), maxLines = 1)
-                Text(name(s, slot, lang), style = st(13.sp, bold = true), maxLines = 1)
-                Text(meta(n, pk.pos, lang), style = st(10.sp, TX2), maxLines = 1)
+                Lb(p.label)
+                Text(name(s, x, lang), style = st(14.5.sp, bold = true), maxLines = 1)
+                Mt(Sched.meta(n.today, p.pos, lang, cfg.time, cfg.room))
             }
         }
     }
 }
 
 class W12 : LessonWidget() {
+    override val padH: Dp = 6.dp
+    override val padV: Dp = 9.dp
     @Composable
     override fun Body(s: AppState, n: Now, lang: String) {
-        val pk = pickSmall(s, n, lang)
-        if (pk == null) { Idle(s, n, lang, 3, compact = true); return }
-        val slot = n.today[pk.pos]
+        val cfg = s.widget
         Column(GlanceModifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(pk.label, style = st(10.sp, ACC, bold = true), maxLines = 2)
-            Spacer(GlanceModifier.height(6.dp))
-            Tile(s, slot, lang, 34.dp, 18.sp)
-            Spacer(GlanceModifier.height(6.dp))
-            Text(name(s, slot, lang), style = st(13.sp, bold = true), maxLines = 2)
+            if (!live(n)) {
+                val I = Sched.idle(n, lang); val nd = n.nextDayLessons
+                if (cfg.idleNextDay && nd.isNotEmpty()) {
+                    val f = nd.first()
+                    Lb(if (cfg.idleNoLessons) I.title else I.day, size = 8.5.sp, center = true)
+                    Spacer(GlanceModifier.defaultWeight())
+                    TileS(s, f, lang, 34.dp)
+                    Text(name(s, f, lang), style = st(10.5.sp, bold = true), maxLines = 3)
+                    Spacer(GlanceModifier.defaultWeight())
+                    Mt(I.day, 9.sp); Mt(Tr.hm(f.start), 9.sp)
+                } else {
+                    Lb(I.day, size = 8.5.sp, center = true)
+                    Spacer(GlanceModifier.defaultWeight())
+                    TileE(I.em, 0xFF8E8E93, 34.dp)
+                    Text(I.title, style = st(10.5.sp, bold = true), maxLines = 3)
+                    Spacer(GlanceModifier.defaultWeight())
+                }
+                return@Column
+            }
+            val p = pickSmall(s, n, lang) ?: return@Column
+            val x = n.today[p.pos]
+            Lb(p.label.replace(" · ", "\n"), size = 8.5.sp, center = true)
             Spacer(GlanceModifier.defaultWeight())
-            Text(Tr.hm(slot.start), style = st(11.sp, TX2), maxLines = 1)
-            val room = Sched.roomLabel(n.today, pk.pos, lang)
-            if (room.isNotEmpty()) Text(room, style = st(10.sp, TX2), maxLines = 2)
+            TileS(s, x, lang, 34.dp)
+            Spacer(GlanceModifier.height(4.dp))
+            Text(name(s, x, lang), style = st(10.5.sp, bold = true), maxLines = 3)
+            Spacer(GlanceModifier.defaultWeight())
+            if (cfg.time) Mt(Tr.hm(x.start) + "–" + Tr.hm(x.end), 9.sp)
+            if (cfg.room) Mt(Sched.roomLabel(n.today, p.pos, lang), 9.sp, 2)
         }
     }
 }
 
-/* ===== 2×4: все уроки дня списком, текущий подсвечен ===== */
+/* ===== 2×4: уроки дня списком ===== */
 class W24 : LessonWidget() {
     @Composable
     override fun Body(s: AppState, n: Now, lang: String) {
-        if (mainPos(n) < 0) { Idle(s, n, lang, 8); return }
+        val cfg = s.widget
         Column(GlanceModifier.fillMaxSize()) {
-            Text(Tr.dayLong(lang, n.date.dayOfWeek.value - 1), style = st(14.sp, bold = true), maxLines = 1)
-            Text(mainLabel(n, lang), style = st(10.sp, ACC, bold = true), maxLines = 1)
-            Spacer(GlanceModifier.height(6.dp))
-            n.today.forEachIndexed { i, slot ->
-                val active = i == mainPos(n)
-                val past = n.phase != Phase.BEFORE && i < (if (n.phase == Phase.LESSON) n.cur else n.next)
-                var m = GlanceModifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 3.dp)
-                if (active) m = m.background(Color(0x400A84FF)).cornerRadius(10.dp)
-                Row(m, verticalAlignment = Alignment.CenterVertically) {
-                    Text(Sched.subj(s, slot.lesson.subj, lang).emoji, style = TextStyle(fontSize = 13.sp))
-                    Spacer(GlanceModifier.width(6.dp))
-                    Text(name(s, slot, lang), style = st(12.sp, if (past) TX3 else TX, bold = active), maxLines = 1,
-                        modifier = GlanceModifier.defaultWeight())
-                    Text(Tr.hm(slot.start), style = st(10.sp, if (past) TX3 else TX2), maxLines = 1)
-                }
+            if (!live(n)) {
+                val I = Sched.idle(n, lang); val nd = n.nextDayLessons
+                Hd(if (cfg.idleNoLessons) I.title else I.day, if (cfg.idleNoLessons) I.day else "")
+                if (cfg.idleNextDay && nd.isNotEmpty()) nd.take(8).forEachIndexed { i, _ -> Lr(s, nd, i, lang, 0) }
+                else Big(I.em, I.title)
+                return@Column
+            }
+            val stx = if (n.phase == Phase.LESSON) tillCur(n, lang) else "☕ " + atNext(n)
+            Hd(Tr.dayLong(lang, n.date.dayOfWeek.value - 1), stx)
+            val past = when (n.phase) { Phase.LESSON -> n.cur - 1; Phase.BREAK -> n.prev; else -> -1 }
+            n.today.take(8).forEachIndexed { i, _ ->
+                Lr(s, n.today, i, lang, if (n.phase == Phase.LESSON && i == n.cur) 1 else if (i <= past) 2 else 0)
             }
         }
     }
 }
 
-/* ===== 4×2: слева «сейчас», справа следующие уроки ===== */
+/** Строка списка: 0 — обычная, 1 — текущая (подсветка), 2 — прошедшая (бледная). */
+@Composable
+private fun Lr(s: AppState, L: List<Slot>, i: Int, lang: String, state: Int) {
+    val x = L[i]
+    val tx = if (state == 2) TX3 else TX
+    val tx2 = if (state == 2) TX3 else TX2
+    var m = GlanceModifier.fillMaxWidth().padding(start = 4.dp, end = 6.dp, top = 2.dp, bottom = 2.dp)
+    if (state == 1) m = m.background(SOFT).cornerRadius(11.dp)
+    Row(m, verticalAlignment = Alignment.CenterVertically) {
+        Text("${x.idx + 1}", style = st(10.sp, tx2))
+        Spacer(GlanceModifier.width(7.dp))
+        TileS(s, x, lang, 24.dp)
+        Spacer(GlanceModifier.width(7.dp))
+        Column(GlanceModifier.defaultWeight()) {
+            Text(name(s, x, lang), style = st(12.5.sp, tx, bold = true), maxLines = 1)
+            val meta = Sched.meta(L, i, lang, s.widget.time, s.widget.room, startOnly = true)
+            if (meta.isNotEmpty()) Text(meta, style = st(9.5.sp, tx2), maxLines = 1)
+        }
+    }
+}
+
+/* ===== 4×2: четыре урока колонками ===== */
 class W42 : LessonWidget() {
     @Composable
     override fun Body(s: AppState, n: Now, lang: String) {
-        val p = mainPos(n)
-        if (p < 0) { Idle(s, n, lang, 4); return }
-        Row(GlanceModifier.fillMaxSize()) {
-            Column(GlanceModifier.defaultWeight().fillMaxHeight()) { MainBlock(s, n, lang) }
-            Spacer(GlanceModifier.width(10.dp))
-            Column(GlanceModifier.defaultWeight().fillMaxHeight()) {
-                Text(Tr.t(lang, "next"), style = st(11.sp, TX3, bold = true), maxLines = 1)
+        val cfg = s.widget
+        Column(GlanceModifier.fillMaxSize()) {
+            if (!live(n)) {
+                val I = Sched.idle(n, lang); val nd = n.nextDayLessons
+                Hd(if (cfg.idleNoLessons) I.title else I.day, if (cfg.idleNoLessons) I.day else "")
+                if (cfg.idleNextDay && nd.isNotEmpty()) Cols(s, nd, 0, -1, lang) else Big(I.em, I.title)
+                return@Column
+            }
+            val start = if (n.phase == Phase.LESSON) n.cur else n.next
+            val stx = if (n.phase == Phase.LESSON) Tr.t(lang, "now") + " · " + tillCur(n, lang)
+                      else Tr.t(lang, "break") + " · " + atNext(n)
+            Hd(Tr.dayLong(lang, n.date.dayOfWeek.value - 1), stx)
+            Cols(s, n.today, start, if (n.phase == Phase.LESSON) n.cur else -1, lang)
+        }
+    }
+}
+
+@Composable
+private fun Cols(s: AppState, L: List<Slot>, start: Int, cur: Int, lang: String) {
+    Row(GlanceModifier.fillMaxSize()) {
+        val items = L.drop(start).take(4)
+        for (k in 0 until 4) {
+            if (k > 0) Spacer(GlanceModifier.width(7.dp))
+            val x = items.getOrNull(k)
+            if (x == null) { Spacer(GlanceModifier.defaultWeight()); continue }
+            val i = start + k
+            Column(
+                GlanceModifier.defaultWeight().fillMaxHeight().background(if (i == cur) SOFT else COLBG).cornerRadius(14.dp)
+                    .padding(horizontal = 6.dp, vertical = 7.dp),
+            ) {
+                TileS(s, x, lang, 26.dp)
                 Spacer(GlanceModifier.height(4.dp))
-                n.today.drop(p + 1).take(4).forEach { slot ->
-                    Row(GlanceModifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(Sched.subj(s, slot.lesson.subj, lang).emoji, style = TextStyle(fontSize = 12.sp))
-                        Spacer(GlanceModifier.width(5.dp))
-                        Text(name(s, slot, lang), style = st(12.sp), maxLines = 1, modifier = GlanceModifier.defaultWeight())
-                        Text(Tr.hm(slot.start), style = st(10.sp, TX2), maxLines = 1)
-                    }
-                }
+                Text(name(s, x, lang), style = st(11.sp, bold = true), maxLines = 2)
+                if (s.widget.time) Mt(Tr.hm(x.start), 9.5.sp)
+                if (s.widget.room) Mt(Sched.roomLabel(L, i, lang), 9.5.sp)
             }
         }
     }

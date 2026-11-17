@@ -2,24 +2,21 @@ package kz.alnazar.schedule.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,141 +28,115 @@ import kz.alnazar.schedule.logic.Sched
 import kz.alnazar.schedule.logic.Slot
 import kz.alnazar.schedule.logic.Tr
 
+/** Строка урока из модели дня: подпись кабинета («в том же кабинете»), замена с зачёркнутым исходным предметом. */
+@Composable
+fun SlotRow(st: AppState, list: List<Slot>, i: Int, state: LsState, lang: String, onClick: (() -> Unit)? = null) {
+    val s = list[i]
+    val v = Sched.subj(st, s.lesson.subj, lang)
+    val orig = if (s.replaced) st.week.getOrNull(s.dayIdx)?.getOrNull(s.idx)?.let { Sched.subj(st, it.subj, lang).name } else null
+    LessonRow(
+        num = s.idx + 1, emoji = v.emoji, color = v.color, name = v.name,
+        sub = Sched.roomLabel(list, i, lang), start = Tr.hm(s.start), end = Tr.hm(s.end), state = state,
+        tag = if (s.replaced) Tr.t(lang, "replaced") else null,
+        was = orig?.takeIf { it != v.name }, onClick = onClick,
+    )
+}
+
 @Composable
 fun HomeScreen(st: AppState, clock: Long) {
     val n = remember(st, clock) { Sched.now(st) }
     val lang = st.appLang
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp)) {
-                Text(Tr.dateTitle(lang, n.date), color = Pal.tx, fontSize = 30.sp, fontWeight = FontWeight.Bold, lineHeight = 34.sp)
-                Text(
-                    "${st.grade} ${Tr.t(lang, "grade").lowercase()} · ${Tr.t(lang, if (st.shift == 2) "shift2" else "shift1")}",
-                    color = Pal.tx2, fontSize = 13.sp,
-                )
+    Page {
+        item { Hdr(Tr.dateTitle(lang, n.date), Tr.t(lang, "hello_sub", st.grade, st.shift)) }
+        item { Box(Modifier.padding(horizontal = 16.dp)) { Hero(st, n) } }
+        if (n.today.isNotEmpty()) {
+            item { Box(Modifier.padding(horizontal = 16.dp)) { Sec(Tr.t(lang, "today")) } }
+            val past = when (n.phase) { Phase.LESSON -> n.cur - 1; Phase.BREAK -> n.prev; Phase.AFTER -> n.today.size - 1; else -> -1 }
+            itemsIndexed(n.today) { i, _ ->
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    SlotRow(st, n.today, i, if (n.phase == Phase.LESSON && i == n.cur) LsState.Cur else if (i <= past) LsState.Past else LsState.Normal, lang)
+                }
+            }
+        } else if (n.nextDay != null) {
+            val nd = n.nextDay
+            item { Box(Modifier.padding(horizontal = 16.dp)) { Sec(Tr.t(lang, "nearest") + " · " + Sched.dayLabel(lang, n.date, nd)) } }
+            itemsIndexed(n.nextDayLessons) { i, _ ->
+                Box(Modifier.padding(horizontal = 16.dp)) { SlotRow(st, n.nextDayLessons, i, LsState.Normal, lang) }
             }
         }
-        item { Hero(st, n) }
-        if (n.today.isNotEmpty()) {
-            item { SectionTitle(Tr.t(lang, "today")) }
-            itemsIndexed(n.today) { i, slot -> LessonRow(st, n.today, i, slot, n) }
-        }
-        item { Spacer(Modifier.height(24.dp)) }
     }
 }
 
+/** Большая карточка «Сейчас» (.hero): градиент акцентного цвета. */
 @Composable
 private fun Hero(st: AppState, n: Now) {
     val lang = st.appLang
-    val p = when (n.phase) { Phase.LESSON -> n.cur; Phase.BREAK, Phase.BEFORE -> n.next; else -> -1 }
+    val fg = T.accTx
     Column(
-        Modifier.padding(horizontal = 14.dp, vertical = 8.dp).fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp)).background(Pal.card).padding(16.dp),
+        Modifier.padding(bottom = 6.dp).fillMaxWidth().clip(RoundedCornerShape(T.rc * 1.1f)).background(T.heroBrush).padding(16.dp),
     ) {
-        if (p < 0) {
-            val title = when (n.phase) {
-                Phase.AFTER -> "✅ " + Tr.t(lang, "doneToday")
-                Phase.DAYOFF -> "😴 " + Tr.t(lang, "weekend")
-                else -> "💤 " + Tr.t(lang, "noLessons")
+        @Composable
+        fun hl(a: String, b: String) = Row(Modifier.fillMaxWidth()) {
+            Text(a.uppercase(), color = fg.copy(alpha = .92f), fontSize = 12.5.sp, fontWeight = FontWeight.Bold, letterSpacing = .5.sp, modifier = Modifier.weight(1f))
+            Text(b, color = fg.copy(alpha = .85f), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
+        }
+        val L = n.today
+        when (n.phase) {
+            Phase.LESSON -> {
+                val c = L[n.cur]; val v = Sched.subj(st, c.lesson.subj, lang)
+                hl(Tr.t(lang, "now"), Tr.t(lang, "left", n.minutesLeft))
+                Row(Modifier.padding(top = 12.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Tile(v.emoji, v.color, 54.dp, onAccent = true)
+                    Column {
+                        Text(v.name, color = fg, fontSize = 23.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp)
+                        Text(Sched.meta(L, n.cur, lang), color = fg.copy(alpha = .88f), fontSize = 13.5.sp, modifier = Modifier.padding(top = 3.dp))
+                    }
+                }
+                val pr = (1f - n.minutesLeft.toFloat() / (c.end - c.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .28f))) {
+                    Box(Modifier.fillMaxWidth(pr).height(6.dp).clip(RoundedCornerShape(9.dp)).background(fg.copy(alpha = .9f)))
+                }
+                NextStrip(st, n, lang)
             }
-            Text(title, color = Pal.tx, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            val nd = n.nextDay
-            if (nd != null && n.nextDayLessons.isNotEmpty()) {
-                Spacer(Modifier.height(10.dp))
-                Text(Sched.dayLabel(lang, n.date, nd), color = Pal.acc, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                n.nextDayLessons.forEach { s ->
-                    val v = Sched.subj(st, s.lesson.subj, lang)
-                    Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(Tr.hm(s.start), color = Pal.tx2, fontSize = 13.sp, modifier = Modifier.width(48.dp))
-                        Text(v.emoji + "  " + v.name, color = Pal.tx, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Phase.BREAK, Phase.BEFORE -> {
+                val x = L[n.next]; val v = Sched.subj(st, x.lesson.subj, lang)
+                hl(Tr.t(lang, if (n.phase == Phase.BEFORE) "soon" else "break"), Tr.t(lang, "startsIn", n.minutesLeft))
+                Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Tile(v.emoji, v.color, 54.dp, onAccent = true)
+                    Column {
+                        Text(v.name, color = fg, fontSize = 23.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp)
+                        val r = Sched.roomLabel(L, n.next, lang)
+                        Text(Tr.t(lang, "next") + " · " + Tr.hm(x.start) + if (r.isNotEmpty()) " · $r" else "",
+                            color = fg.copy(alpha = .88f), fontSize = 13.5.sp, modifier = Modifier.padding(top = 3.dp))
                     }
                 }
             }
-            return@Column
-        }
-        val slot = n.today[p]
-        val v = Sched.subj(st, slot.lesson.subj, lang)
-        val label = when (n.phase) {
-            Phase.LESSON -> Tr.t(lang, "now")
-            Phase.BREAK -> Tr.t(lang, "break") + " · " + Tr.t(lang, "next").lowercase()
-            else -> Tr.t(lang, "before") + " · " + Tr.t(lang, "next").lowercase()
-        }
-        val left = if (n.phase == Phase.LESSON) Tr.t(lang, "left", n.minutesLeft) else Tr.t(lang, "until", n.minutesLeft)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(label.uppercase(), color = Pal.acc, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text(left, color = Pal.tx2, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        }
-        Spacer(Modifier.height(12.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            EmojiTile(v.emoji, v.color, 52.dp)
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(v.name, color = Pal.tx, fontSize = 22.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp)
-                val room = Sched.roomLabel(n.today, p, lang)
-                Text(
-                    Tr.hm(slot.start) + "–" + Tr.hm(slot.end) + if (room.isNotEmpty()) " · $room" else "",
-                    color = Pal.tx2, fontSize = 14.sp,
-                )
-            }
-        }
-        if (n.phase == Phase.LESSON) {
-            Spacer(Modifier.height(14.dp))
-            val total = (slot.end - slot.start).coerceAtLeast(1)
-            LinearProgressIndicator(
-                progress = { 1f - n.minutesLeft.toFloat() / total },
-                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp)),
-                color = Pal.tx, trackColor = Pal.card2,
-            )
-        }
-        val after = p + 1
-        if (after < n.today.size) {
-            val ns = n.today[after]
-            val nv = Sched.subj(st, ns.lesson.subj, lang)
-            Spacer(Modifier.height(14.dp))
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Pal.card2).padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(Tr.t(lang, "next"), color = Pal.tx2, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                Text(nv.emoji + " " + nv.name, color = Pal.tx, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                Text(Tr.hm(ns.start), color = Pal.tx2, fontSize = 13.sp)
+            else -> {
+                val I = Sched.idle(n, lang)
+                Row(Modifier.padding(top = 6.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(I.em, fontSize = 38.sp)
+                    Column {
+                        Text(I.title, color = fg, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        if (I.day.isNotEmpty()) Text(Tr.t(lang, "nearest") + ": " + I.day, color = fg.copy(alpha = .85f), fontSize = 13.5.sp)
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun LessonRow(st: AppState, list: List<Slot>, i: Int, slot: Slot, n: Now) {
-    val lang = st.appLang
-    val v = Sched.subj(st, slot.lesson.subj, lang)
-    val active = (n.phase == Phase.LESSON && i == n.cur)
-    val past = when (n.phase) {
-        Phase.LESSON -> i < n.cur
-        Phase.BREAK -> i <= n.prev
-        Phase.AFTER -> true
-        else -> false
-    }
-    val a = if (past) 0.45f else 1f
+private fun NextStrip(st: AppState, n: Now, lang: String) {
+    val fg = T.accTx
     Row(
-        Modifier.padding(horizontal = 14.dp, vertical = 4.dp).fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp)).background(if (active) Pal.card2 else Pal.card)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier.padding(top = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color.White.copy(alpha = .16f)).padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("${slot.idx + 1}", color = Pal.tx2.copy(alpha = a), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(18.dp))
-        EmojiTile(v.emoji, v.color, 38.dp)
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Text(v.name, color = Pal.tx.copy(alpha = a), fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val room = Sched.roomLabel(list, i, lang)
-            val extra = if (slot.replaced) " · " + Tr.t(lang, "replaced") else ""
-            if (room.isNotEmpty() || extra.isNotEmpty())
-                Text(room + extra, color = (if (slot.replaced) Pal.warn else Pal.tx2).copy(alpha = a), fontSize = 13.sp, maxLines = 1)
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(Tr.hm(slot.start), color = Pal.tx.copy(alpha = a), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            Text(Tr.hm(slot.end), color = Pal.tx2.copy(alpha = a), fontSize = 13.sp)
-        }
+        if (n.next < 0) { Text(Tr.t(lang, "lastLesson"), color = fg.copy(alpha = .85f), fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold); return@Row }
+        val x = n.today[n.next]; val v = Sched.subj(st, x.lesson.subj, lang)
+        Text(Tr.t(lang, "next"), color = fg.copy(alpha = .85f), fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold)
+        Tile(v.emoji, v.color, 22.dp, onAccent = true)
+        Text(v.name, color = fg, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Text(Tr.hm(x.start), color = fg.copy(alpha = .85f), fontSize = 13.5.sp)
     }
 }
