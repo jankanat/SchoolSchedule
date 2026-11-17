@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- временная иконка (книга с расписанием); заменим на твою из GPT -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M34,32h40a4,4 0 0 1 4,4v36a4,4 0 0 1 -4,4h-40a4,4 0 0 1 -4,-4v-36a4,4 0 0 1 4,-4z" />
+    <path android:fillColor="#FF0A84FF"
+        android:pathData="M30,40h48v4h-48z" />
+    <path android:fillColor="#FF0A84FF"
+        android:pathData="M38,50h10v6h-10zM52,50h18v6h-18zM38,60h10v6h-10zM52,60h18v6h-18z" />
+</vector>

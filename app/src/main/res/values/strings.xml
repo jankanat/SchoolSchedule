@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SchoolSchedule</string>
+    <string name="w22">Уроки 2×2</string>
+    <string name="w21">Урок 2×1</string>
+    <string name="w12">Урок 1×2</string>
+    <string name="w24">Уроки 2×4</string>
+    <string name="w42">Уроки 4×2</string>
+    <string name="w22_d">Текущий и следующий урок</string>
+    <string name="w21_d">Один урок, по настройке</string>
+    <string name="w12_d">Один урок, вертикально</string>
+    <string name="w24_d">Уроки на сегодня, список</string>
+    <string name="w42_d">Сейчас и далее, широкий</string>
+</resources>
