@@ -1,5 +1,6 @@
 package kz.alnazar.schedule.ui
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -158,7 +159,7 @@ fun WavyProgress(progress: Float, active: Color, track: Color) {
             val path = androidx.compose.ui.graphics.Path()
             var x = 0f
             while (x <= px) {
-                val y = cy + amp * kotlin.math.sin(((x / wl) - phase.value) * 2f * kotlin.math.PI.toFloat())
+                val y = cy + amp * kotlin.math.sin(((x / wl) - phase.value) * 2f * kotlin.math.PI.toFloat()).toFloat()
                 if (x == 0f) path.moveTo(x, y) else path.lineTo(x, y)
                 x += 2f
             }
