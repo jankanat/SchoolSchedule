@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         Store.ensure(this)
-        setContent { AppTheme { Root() } }
+        setContent { Root() }
     }
 
     override fun onResume() {
@@ -78,6 +78,7 @@ private fun Root() {
 
     BackHandler(enabled = ui.sheet != null || ui.page != null) { if (ui.sheet != null) ui.close() else ui.back() }
 
+    AppTheme(tokFor(st.style)) {
     CompositionLocalProvider(LocalUi provides ui, LocalIcons provides IconPrefs(st.iconSet, st.iconTint)) {
         Box(Modifier.fillMaxSize()) {
             // содержимое записывается в слой — по нему меню делает размытие и преломление
@@ -100,16 +101,15 @@ private fun Root() {
             }
 
             if (ui.page == null) {
-                GlassNav(
-                    listOf(
-                        NavTab(Tr.t(lang, "tab_home"), Ic.home),
-                        NavTab(Tr.t(lang, "tab_schedule"), Ic.cal),
-                        NavTab(Tr.t(lang, "tab_widgets"), Ic.wid),
-                        NavTab(Tr.t(lang, "tab_hw"), Ic.hw),
-                        NavTab(Tr.t(lang, "tab_settings"), Ic.set),
-                    ),
-                    pager, backdrop, Modifier.align(Alignment.BottomCenter),
+                val tabs = listOf(
+                    NavTab(Tr.t(lang, "tab_home"), Ic.home),
+                    NavTab(Tr.t(lang, "tab_schedule"), Ic.cal),
+                    NavTab(Tr.t(lang, "tab_widgets"), Ic.wid),
+                    NavTab(Tr.t(lang, "tab_hw"), Ic.hw),
+                    NavTab(Tr.t(lang, "tab_settings"), Ic.set),
                 )
+                if (st.style == "pixel") PixelNav(tabs, pager, Modifier.align(Alignment.BottomCenter))
+                else GlassNav(tabs, pager, backdrop, Modifier.align(Alignment.BottomCenter))
             }
 
             AnimatedVisibility(
@@ -125,4 +125,5 @@ private fun Root() {
             }
         }
     }
+}
 }

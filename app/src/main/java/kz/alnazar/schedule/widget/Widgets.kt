@@ -2,6 +2,8 @@ package kz.alnazar.schedule.widget
 
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -51,11 +53,23 @@ import kz.alnazar.schedule.logic.Tr
 import kz.alnazar.schedule.ui.MainActivity
 
 /* ===== Цвета стиля iOS 26 (тёмная тема). Остальные стили и темы — на следующем этапе. ===== */
-private val TX = ColorProvider(Color(0xFFFFFFFF))
-private val TX2 = ColorProvider(Color(0x99FFFFFF))
-private val TX3 = ColorProvider(Color(0x59FFFFFF))
-private val ACC = ColorProvider(Color(0xFF0A84FF))
+/** Палитра виджета для текущего стиля приложения. */
+internal data class WPal(
+    val pixel: Boolean, val tx: Color, val tx2: Color, val tx3: Color, val acc: Color, val soft: Color,
+    val colBg: Color, val line: Color, val tileBw: Color, val bg: Int, val radius: Dp,
+)
+private val IOS = WPal(false, Color(0xFFFFFFFF), Color(0x99FFFFFF), Color(0x59FFFFFF), Color(0xFF0A84FF), Color(0x2B0A84FF),
+    Color(0x12FFFFFF), Color(0x1FFFFFFF), Color(0x42828296), R.drawable.glass_dark, 34.dp)
+private val PIXEL = WPal(true, Color(0xFFE6E0E9), Color(0xFFCAC4D0), Color(0x80CAC4D0), Color(0xFFD0BCFF), Color(0xFF4A4458),
+    Color(0xFF36343B), Color(0x29CAC4D0), Color(0xFF36343B), R.drawable.pixel_dark, 28.dp)
+internal val LocalWP = staticCompositionLocalOf { IOS }
 
+private val TX: ColorProvider @Composable get() = ColorProvider(LocalWP.current.tx)
+private val TX2: ColorProvider @Composable get() = ColorProvider(LocalWP.current.tx2)
+private val TX3: ColorProvider @Composable get() = ColorProvider(LocalWP.current.tx3)
+private val ACC: ColorProvider @Composable get() = ColorProvider(LocalWP.current.acc)
+
+@Composable
 private fun st(size: TextUnit, color: ColorProvider = TX, bold: Boolean = false) =
     TextStyle(color = color, fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal)
 
@@ -74,13 +88,16 @@ abstract class LessonWidget : GlanceAppWidget() {
             val s by Store.state.collectAsState()
             val tick by Store.tick.collectAsState()
             val n = remember(s, tick) { Sched.now(s) }
-            Box(
-                GlanceModifier.fillMaxSize()
-                    .background(ImageProvider(R.drawable.glass_dark))
-                    .cornerRadius(34.dp)
-                    .clickable(actionStartActivity<MainActivity>())
-                    .padding(horizontal = padH, vertical = padV),
-            ) { Body(s, n, s.widgetLang) }
+            val pal = if (s.style == "pixel") PIXEL else IOS
+            CompositionLocalProvider(LocalWP provides pal) {
+                Box(
+                    GlanceModifier.fillMaxSize()
+                        .background(ImageProvider(pal.bg))
+                        .cornerRadius(pal.radius)
+                        .clickable(actionStartActivity<MainActivity>())
+                        .padding(horizontal = padH, vertical = padV),
+                ) { Body(s, n, s.widgetLang) }
+            }
         }
     }
 }
@@ -88,9 +105,9 @@ abstract class LessonWidget : GlanceAppWidget() {
 
 /* ===== Общие кусочки (разметка 1:1 с прототипом: .lb, .nm, .mt, .ic) ===== */
 
-private val LINE = ColorProvider(Color(0x1FFFFFFF))
-private val SOFT = Color(0x2B0A84FF)          // acc-soft
-private val COLBG = Color(0x12FFFFFF)         // tx 7%
+private val LINE: ColorProvider @Composable get() = ColorProvider(LocalWP.current.line)
+private val SOFT: Color @Composable get() = LocalWP.current.soft
+private val COLBG: Color @Composable get() = LocalWP.current.colBg
 
 @Composable
 private fun TileE(s: AppState, emoji: String, color: Long, size: Dp) {
@@ -98,7 +115,7 @@ private fun TileE(s: AppState, emoji: String, color: Long, size: Dp) {
     val mono = s.iconSet == "mono" && key != null
     val bg = when {
         mono && s.iconTint == "accent" -> SOFT
-        mono && s.iconTint == "bw" -> Color(0x42828296)
+        mono && s.iconTint == "bw" -> LocalWP.current.tileBw
         else -> Color(color).copy(alpha = .24f)
     }
     val res = when {
@@ -108,11 +125,11 @@ private fun TileE(s: AppState, emoji: String, color: Long, size: Dp) {
         s.iconSet == "mono" -> IconRes.mono[key]
         else -> null
     }
-    Box(GlanceModifier.size(size).background(bg).cornerRadius(size * .3f), contentAlignment = Alignment.Center) {
+    Box(GlanceModifier.size(size).background(bg).cornerRadius(size * if (LocalWP.current.pixel) .5f else .3f), contentAlignment = Alignment.Center) {
         when {
             res != null && mono -> Image(
                 ImageProvider(res), contentDescription = null, modifier = GlanceModifier.size(size * .6f),
-                colorFilter = ColorFilter.tint(ColorProvider(when (s.iconTint) { "accent" -> Color(0xFF0A84FF); "bw" -> Color.White; else -> Color(color) })),
+                colorFilter = ColorFilter.tint(ColorProvider(when (s.iconTint) { "accent" -> LocalWP.current.acc; "bw" -> LocalWP.current.tx; else -> Color(color) })),
             )
             res != null -> Image(ImageProvider(res), contentDescription = null, modifier = GlanceModifier.size(size * if (s.iconSet == "fluent") .7f else .6f))
             else -> Text(emoji, style = TextStyle(fontSize = (size.value * .55f).sp))
@@ -131,7 +148,7 @@ private fun name(s: AppState, slot: Slot, lang: String) = Sched.subj(s, slot.les
 @Composable
 private fun Lb(a: String, b: String = "", size: TextUnit = 10.sp, center: Boolean = false) {
     Row(GlanceModifier.fillMaxWidth(), horizontalAlignment = if (center) Alignment.CenterHorizontally else Alignment.Start, verticalAlignment = Alignment.Bottom) {
-        Text(a.uppercase(), style = st(size, ACC, bold = true), maxLines = 2, modifier = if (b.isNotEmpty()) GlanceModifier.defaultWeight() else GlanceModifier)
+        Text(if (LocalWP.current.pixel) a else a.uppercase(), style = st(size, ACC, bold = true), maxLines = 2, modifier = if (b.isNotEmpty()) GlanceModifier.defaultWeight() else GlanceModifier)
         if (b.isNotEmpty()) Text(b, style = st(size, TX2), maxLines = 1)
     }
 }

@@ -71,13 +71,15 @@ fun HomeScreen(st: AppState, clock: Long) {
 @Composable
 private fun Hero(st: AppState, n: Now) {
     val lang = st.appLang
-    val fg = T.accTx
+    val t = T
+    val fg = t.heroTx ?: t.accTx
+    val bgMod = if (t.hero != null) Modifier.background(t.hero) else Modifier.background(t.heroBrush)
     Column(
-        Modifier.padding(bottom = 6.dp).fillMaxWidth().clip(RoundedCornerShape(T.rc * 1.1f)).background(T.heroBrush).padding(16.dp),
+        Modifier.padding(bottom = 6.dp).fillMaxWidth().clip(RoundedCornerShape(t.rc * 1.1f)).then(bgMod).padding(if (t.pixel) 20.dp else 16.dp),
     ) {
         @Composable
         fun hl(a: String, b: String) = Row(Modifier.fillMaxWidth()) {
-            Text(a.uppercase(), color = fg.copy(alpha = .92f), fontSize = 12.5.sp, fontWeight = FontWeight.Bold, letterSpacing = .5.sp, modifier = Modifier.weight(1f))
+            Text(if (t.pixel) a else a.uppercase(), color = fg.copy(alpha = .92f), fontSize = if (t.pixel) 14.sp else 12.5.sp, fontWeight = if (t.pixel) FontWeight.Medium else FontWeight.Bold, letterSpacing = if (t.pixel) 0.sp else .5.sp, modifier = Modifier.weight(1f))
             Text(b, color = fg.copy(alpha = .85f), fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
         }
         val L = n.today
@@ -93,7 +95,8 @@ private fun Hero(st: AppState, n: Now) {
                     }
                 }
                 val pr = (1f - n.minutesLeft.toFloat() / (c.end - c.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-                Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .28f))) {
+                if (t.pixel) WavyProgress(pr, t.acc, fg.copy(alpha = .25f))
+                else Box(Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(9.dp)).background(Color.White.copy(alpha = .28f))) {
                     Box(Modifier.fillMaxWidth(pr).height(6.dp).clip(RoundedCornerShape(9.dp)).background(fg.copy(alpha = .9f)))
                 }
                 NextStrip(st, n, lang)
@@ -138,5 +141,29 @@ private fun NextStrip(st: AppState, n: Now, lang: String) {
         Tile(v.emoji, v.color, 22.dp, onAccent = true)
         Text(v.name, color = fg, fontSize = 13.5.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Text(Tr.hm(x.start), color = fg.copy(alpha = .85f), fontSize = 13.5.sp)
+    }
+}
+
+/** Волнистый индикатор прогресса Material 3 Expressive: пройденная часть — волна, остаток — прямая. */
+@Composable
+fun WavyProgress(progress: Float, active: Color, track: Color) {
+    val phase = androidx.compose.animation.core.rememberInfiniteTransition(label = "wave")
+        .animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1600, easing = androidx.compose.animation.core.LinearEasing)), label = "ph")
+    androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(12.dp)) {
+        val w = size.width; val cy = size.height / 2; val sw = 4.dp.toPx(); val amp = 2.6.dp.toPx(); val wl = 22.dp.toPx()
+        val px = (w * progress).coerceIn(0f, w)
+        val gap = 6.dp.toPx()
+        if (px + gap < w) drawLine(track, androidx.compose.ui.geometry.Offset(px + gap, cy), androidx.compose.ui.geometry.Offset(w, cy), sw, androidx.compose.ui.graphics.StrokeCap.Round)
+        if (px > 1f) {
+            val path = androidx.compose.ui.graphics.Path()
+            var x = 0f
+            while (x <= px) {
+                val y = cy + amp * kotlin.math.sin(((x / wl) - phase.value) * 2f * kotlin.math.PI.toFloat())
+                if (x == 0f) path.moveTo(x, y) else path.lineTo(x, y)
+                x += 2f
+            }
+            drawPath(path, active, style = androidx.compose.ui.graphics.drawscope.Stroke(sw, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+        }
+        drawCircle(active, sw / 2, androidx.compose.ui.geometry.Offset(w - sw / 2, cy))
     }
 }

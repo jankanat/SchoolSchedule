@@ -46,6 +46,11 @@ private val WBD = Color(0x29FFFFFF)     // rgba(255,255,255,.16)
 
 @Composable
 fun WidgetFrame(w: Int, h: Int, pad: androidx.compose.foundation.layout.PaddingValues, content: @Composable ColumnScope.() -> Unit) {
+    if (T.pixel) {
+        // Pixel OS: плотная тональная подложка Material You, без стекла
+        Column(Modifier.size(w.dp, h.dp).clip(RoundedCornerShape(28.dp)).background(T.s2).padding(pad), content = content)
+        return
+    }
     val shape = RoundedCornerShape(34.dp)
     Column(
         Modifier.size(w.dp, h.dp).clip(shape).background(WBG).border(1.dp, WBD, shape)
@@ -61,7 +66,7 @@ fun WidgetFrame(w: Int, h: Int, pad: androidx.compose.foundation.layout.PaddingV
 @Composable
 private fun Lb(a: String, b: String = "", size: TextUnit = 10.sp, center: Boolean = false) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (center) Arrangement.Center else Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-        Text(a.uppercase(), color = T.acc, fontSize = size, fontWeight = FontWeight.Bold, letterSpacing = .5.sp, maxLines = 2,
+        Text(if (T.pixel) a else a.uppercase(), color = T.acc, fontSize = if (T.pixel) size * 1.1f else size, fontWeight = FontWeight.Bold, letterSpacing = if (T.pixel) 0.sp else .5.sp, maxLines = 2,
             textAlign = if (center) TextAlign.Center else TextAlign.Start, lineHeight = (size.value * 1.2f).sp)
         if (b.isNotEmpty()) Text(b, color = T.tx2, fontSize = size, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 6.dp))
     }

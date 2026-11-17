@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -142,7 +143,7 @@ fun SettingsScreen(st: AppState) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Sec(Tr.t(lang, "set_look"))
                 Group {
-                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), "iOS 26 · " + Tr.t(lang, "th_dark")) { ui.go("appearance") }
+                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (if (st.style == "pixel") "Pixel OS" else "iOS 26") + " · " + Tr.t(lang, "th_dark")) { ui.go("appearance") }
                     RowDivider()
                     SetRow("🌐", 0xFF0A84FF, Tr.t(lang, "language"), "${st.appLang.uppercase()} · ${Tr.t(lang, "tab_widgets")}: ${st.widgetLang.uppercase()}") { ui.go("language") }
                 }
@@ -252,7 +253,7 @@ fun SubPage(id: String, st: AppState) {
                             }
                         }
                         Sec(Tr.t(lang, "style"))
-                        Chips(listOf("ios26" to "iOS 26", "ios18" to "iOS 18", "pixel" to "Pixel OS", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9"), "ios26") {}
+                        StylePicker(st)
                         Sec(Tr.t(lang, "theme"))
                         Chips(listOf("dark" to Tr.t(lang, "th_dark")), "dark") {}
                         Card(Modifier.padding(top = 14.dp)) { Text(Tr.t(lang, "styles_soon"), color = T.tx2, fontSize = 13.5.sp) }
@@ -346,3 +347,41 @@ fun IconSetPicker(st: AppState) {
     }
     Text(Tr.t(lang, "credits"), color = T.tx2, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp))
 }
+
+/** Карточки стилей с превью виджета 2×1 в этом стиле. Готовы iOS 26 и Pixel OS, остальные — позже. */
+@Composable
+fun StylePicker(st: AppState) {
+    val ctx = LocalContext.current
+    val styles = listOf("ios26" to ("iOS 26" to "Liquid Glass"), "pixel" to ("Pixel OS" to "Material 3 Expressive"),
+        "ios18" to ("iOS 18" to ""), "color" to ("ColorOS 17" to ""), "origin" to ("OriginOS 7" to ""), "oneui" to ("One UI 9" to ""))
+    val n = Sched.now(st)
+    styles.chunked(2).forEach { pair ->
+        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            pair.forEach { (id, names) ->
+                val ready = id == "ios26" || id == "pixel"
+                val on = st.style == id
+                val shape = RoundedCornerShape(T.rc * .8f)
+                Column(
+                    Modifier.weight(1f).glass(shape).border(2.dp, if (on) T.acc else Color.Transparent, shape)
+                        .tap(enabled = ready) { Store.update(ctx) { it.copy(style = id) } }.padding(10.dp).graphicsAlpha(if (ready) 1f else .45f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).wall().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                        if (ready) AppTheme(tokFor(id)) { Box(Modifier.graphicsLayerScale(.8f)) { WidgetPreview("2x1", st.copy(style = id), n, st.widgetLang) } }
+                        else Text("скоро", color = Color.White.copy(alpha = .8f), fontSize = 13.sp, modifier = Modifier.padding(vertical = 22.dp))
+                    }
+                    Text(names.first, color = T.tx, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                    if (names.second.isNotEmpty()) Text(names.second, color = T.tx2, fontSize = 11.5.sp)
+                }
+            }
+        }
+    }
+}
+
+fun Modifier.graphicsLayerScale(k: Float): Modifier = this.then(
+    Modifier.layout { m, c ->
+        val p = m.measure(c.copy(minWidth = 0, minHeight = 0, maxWidth = androidx.compose.ui.unit.Constraints.Infinity, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
+        val w = (p.width * k).toInt(); val h = (p.height * k).toInt()
+        layout(w, h) { p.placeWithLayer((w - p.width) / 2, (h - p.height) / 2) { scaleX = k; scaleY = k } }
+    },
+)

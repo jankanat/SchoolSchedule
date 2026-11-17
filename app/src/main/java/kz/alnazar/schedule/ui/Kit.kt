@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun Modifier.glass(shape: Shape, color: Color = T.s1): Modifier {
     val t = T
+    if (!t.glassy) return this.clip(shape).background(color, shape)
     return this.clip(shape).background(color, shape)
         .border(1.dp, Brush.verticalGradient(listOf(t.cardBorderTop, t.cardBorderBottom)), shape)
 }
@@ -93,12 +94,12 @@ fun Modifier.tap(enabled: Boolean = true, onClick: () -> Unit): Modifier =
 @Composable
 fun Hdr(title: String, sub: String? = null, right: (@Composable RowScope.() -> Unit)? = null) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 10.dp),
+        Modifier.fillMaxWidth().heightIn(min = T.hdrMin).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 10.dp),
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = T.tx, fontSize = T.titleSize.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp, lineHeight = (T.titleSize * 1.1f).sp)
+            Text(title, color = T.tx, fontSize = T.titleSize.sp, fontWeight = T.titleWeight, letterSpacing = if (T.pixel) 0.sp else (-0.6).sp, lineHeight = (T.titleSize * 1.15f).sp)
             if (sub != null) Text(sub, color = T.tx2, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 4.dp))
         }
         if (right != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), content = right)
@@ -115,14 +116,16 @@ fun HdrBack(title: String, onBack: () -> Unit) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(T.s1).tap(onClick = onBack), contentAlignment = Alignment.Center) {
             Text("‹", color = T.tx, fontSize = 26.sp, fontWeight = FontWeight.Medium, modifier = Modifier.offset(y = (-2).dp))
         }
-        Text(title, color = T.tx, fontSize = T.titleSize.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.6).sp,
+        Text(title, color = T.tx, fontSize = if (T.pixel) 26.sp else T.titleSize.sp, fontWeight = T.titleWeight, letterSpacing = if (T.pixel) 0.sp else (-0.6).sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
     }
 }
 
 @Composable
 fun Sec(text: String) {
-    Text(text.uppercase(), color = T.tx2, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = .2.sp,
+    if (T.pixel) Text(text, color = T.acc, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 22.dp, bottom = 8.dp))
+    else Text(text.uppercase(), color = T.tx2, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = .2.sp,
         modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 20.dp, bottom = 8.dp))
 }
 
@@ -153,7 +156,8 @@ fun Group(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 fun RowDivider() {
-    Box(Modifier.padding(start = 14.dp).fillMaxWidth().height(1.dp).background(T.line))
+    if (T.pixel) Box(Modifier.fillMaxWidth().height(3.dp).background(T.bg.first()))
+    else Box(Modifier.padding(start = 14.dp).fillMaxWidth().height(1.dp).background(T.line))
 }
 
 /** Строка настроек: цветная плитка, заголовок, подзаголовок, стрелка. */
@@ -193,10 +197,54 @@ fun TgRow(title: String, on: Boolean, sub: String? = null, onChange: (Boolean) -
 
 @Composable
 fun IosSwitch(on: Boolean) {
+    if (T.pixel) { M3Switch(on); return }
     val bg by animateColorAsState(if (on) T.swOn else T.s2, tween(200), label = "sw")
     val x by animateDpAsState(if (on) 22.dp else 2.dp, tween(200), label = "swx")
     Box(Modifier.size(51.dp, 31.dp).clip(RoundedCornerShape(99.dp)).background(bg)) {
         Box(Modifier.offset(x = x, y = 2.dp).size(27.dp).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
+    }
+}
+
+/** Переключатель Material 3 Expressive: толстая дорожка, большой бегунок с галочкой. */
+@Composable
+fun M3Switch(on: Boolean) {
+    val t = T
+    val track by animateColorAsState(if (on) t.acc else t.s2, tween(220), label = "m3t")
+    val thumb by animateColorAsState(if (on) t.accTx else t.outline, tween(220), label = "m3th")
+    val sz by animateDpAsState(if (on) 24.dp else 16.dp, spring(dampingRatio = .6f, stiffness = 600f), label = "m3s")
+    val x by animateDpAsState(if (on) 24.dp else 8.dp, spring(dampingRatio = .7f, stiffness = 500f), label = "m3x")
+    Box(
+        Modifier.size(52.dp, 32.dp).clip(RoundedCornerShape(99.dp)).background(track)
+            .border(2.dp, if (on) Color.Transparent else t.outline, RoundedCornerShape(99.dp)),
+    ) {
+        Box(
+            Modifier.offset(x = x + (24.dp - sz) / 2, y = (32.dp - sz) / 2).size(sz).background(thumb, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) { if (on) Text("✓", color = t.acc, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+    }
+}
+
+/** Группа связанных кнопок Material 3 Expressive: выбранная — капсула акцентного цвета, у остальных внутренние углы маленькие. */
+@Composable
+fun <K> ConnectedGroup(options: List<Pair<K, String>>, selected: K, dots: Set<K> = emptySet(), onSelect: (K) -> Unit) {
+    val t = T
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        options.forEachIndexed { i, (k, label) ->
+            val on = k == selected
+            val first = i == 0; val last = i == options.lastIndex
+            val inner by animateDpAsState(if (on) 24.dp else 8.dp, spring(dampingRatio = .6f, stiffness = 500f), label = "cg")
+            val l = if (first) 24.dp else inner; val r = if (last) 24.dp else inner
+            val bg by animateColorAsState(if (on) t.acc else t.s2, tween(200), label = "cgb")
+            val fg by animateColorAsState(if (on) t.accTx else t.tx, tween(200), label = "cgf")
+            Box(
+                Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(topStart = l, bottomStart = l, topEnd = r, bottomEnd = r))
+                    .background(bg).tap { onSelect(k) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(label, color = fg, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (k in dots) Box(Modifier.align(Alignment.TopEnd).padding(top = 5.dp, end = 8.dp).size(6.dp).background(Color(0xFFFFB4AB), CircleShape))
+            }
+        }
     }
 }
 
@@ -206,6 +254,7 @@ private val SLIDE = spring<Dp>(dampingRatio = .82f, stiffness = 520f)
 
 @Composable
 fun <K> Seg(options: List<Pair<K, String>>, selected: K, onSelect: (K) -> Unit) {
+    if (T.pixel) { ConnectedGroup(options, selected, onSelect = onSelect); return }
     val idx = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
     BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(T.rsg)).background(T.s2).padding(3.dp)) {
         val gap = 2.dp
@@ -229,6 +278,7 @@ fun <K> Seg(options: List<Pair<K, String>>, selected: K, onSelect: (K) -> Unit) 
 /** Ряд одинаковых кнопок (дни недели) с переезжающей подсветкой. */
 @Composable
 fun <K> EqualPills(options: List<Pair<K, String>>, selected: K, dots: Set<K> = emptySet(), onSelect: (K) -> Unit) {
+    if (T.pixel) { ConnectedGroup(options, selected, dots, onSelect); return }
     val idx = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val gap = 6.dp
@@ -252,6 +302,12 @@ fun <K> EqualPills(options: List<Pair<K, String>>, selected: K, dots: Set<K> = e
 /** Чипы разной ширины: подсветка переезжает и меняет ширину под выбранный чип. */
 @Composable
 fun <K> Chips(options: List<Pair<K, String>>, selected: K?, onSelect: (K) -> Unit) {
+    if (T.pixel) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { (k, label) -> Chip(label, k == selected) { onSelect(k) } }
+        }
+        return
+    }
     val idx = options.indexOfFirst { it.first == selected }
     val pos = remember(options.size) { mutableStateListOf(*Array(options.size) { 0f to 0f }) }
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -282,6 +338,21 @@ fun <K> Chips(options: List<Pair<K, String>>, selected: K?, onSelect: (K) -> Uni
 
 @Composable
 fun Chip(label: String, on: Boolean, onClick: () -> Unit) {
+    if (T.pixel) {
+        // фильтр-чип Material 3: выбранный — тональная заливка и галочка, остальные — контур
+        val t = T
+        val bgp by animateColorAsState(if (on) t.secCont else Color.Transparent, tween(200), label = "fc")
+        val shape = RoundedCornerShape(if (on) 16.dp else 8.dp)
+        Row(
+            Modifier.height(36.dp).clip(shape).background(bgp).border(1.dp, if (on) Color.Transparent else t.outline, shape)
+                .tap(onClick = onClick).padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (on) Text("✓", color = t.onSecCont, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text(label, color = if (on) t.onSecCont else t.tx2, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+        return
+    }
     val bg by animateColorAsState(if (on) T.acc else T.s2, tween(200), label = "chip")
     Box(
         Modifier.clip(RoundedCornerShape(99.dp)).background(bg).tap(onClick = onClick).padding(vertical = 8.dp, horizontal = 14.dp),
@@ -296,7 +367,7 @@ enum class BtnKind { Primary, Sec, Ghost, Danger }
 fun Btn(text: String, modifier: Modifier = Modifier, kind: BtnKind = BtnKind.Primary, small: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
     val (bg, fg) = when (kind) {
         BtnKind.Primary -> T.acc to T.accTx
-        BtnKind.Sec -> T.accSoft to T.acc
+        BtnKind.Sec -> if (T.pixel) T.secCont to T.onSecCont else T.accSoft to T.acc
         BtnKind.Ghost -> T.s2 to T.tx
         BtnKind.Danger -> Color(0x2EFF453A) to Color(0xFFFF453A)
     }
@@ -356,7 +427,11 @@ fun LessonRow(
 ) {
     val shape = RoundedCornerShape(T.rc * .75f)
     var m = Modifier.padding(bottom = 8.dp).fillMaxWidth()
-    m = if (state == LsState.Cur) m.clip(shape).background(T.accSoft, shape).border(1.5.dp, T.acc, shape) else m.glass(shape)
+    m = when {
+        state == LsState.Cur && T.pixel -> m.clip(shape).background(T.secCont, shape)
+        state == LsState.Cur -> m.clip(shape).background(T.accSoft, shape).border(1.5.dp, T.acc, shape)
+        else -> m.glass(shape)
+    }
     if (onClick != null) m = m.tap(onClick = onClick)
     val a = if (state == LsState.Past) .5f else 1f
     Row(m.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
