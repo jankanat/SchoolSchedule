@@ -97,7 +97,6 @@ private val TX3: ColorProvider @Composable get() = ColorProvider(LocalWP.current
 private val ACC: ColorProvider @Composable get() = ColorProvider(LocalWP.current.acc)
 
 @Composable
-@Composable
 private fun st(size: TextUnit, color: ColorProvider = TX, bold: Boolean = false) =
     TextStyle(color = color, fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal, fontFamily = LocalWP.current.ff)
 
