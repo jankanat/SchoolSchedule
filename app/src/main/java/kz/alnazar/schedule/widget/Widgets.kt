@@ -10,7 +10,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
+import androidx.glance.Image
+import kz.alnazar.schedule.ui.IconRes
 import androidx.glance.GlanceModifier
 import androidx.glance.ImageProvider
 import androidx.glance.action.actionStartActivity
@@ -90,16 +93,36 @@ private val SOFT = Color(0x2B0A84FF)          // acc-soft
 private val COLBG = Color(0x12FFFFFF)         // tx 7%
 
 @Composable
-private fun TileE(emoji: String, color: Long, size: Dp) {
-    Box(
-        GlanceModifier.size(size).background(Color(color).copy(alpha = .24f)).cornerRadius(size * .3f),
-        contentAlignment = Alignment.Center,
-    ) { Text(emoji, style = TextStyle(fontSize = (size.value * .55f).sp)) }
+private fun TileE(s: AppState, emoji: String, color: Long, size: Dp) {
+    val key = IconRes.key(emoji)
+    val mono = s.iconSet == "mono" && key != null
+    val bg = when {
+        mono && s.iconTint == "accent" -> SOFT
+        mono && s.iconTint == "bw" -> Color(0x42828296)
+        else -> Color(color).copy(alpha = .24f)
+    }
+    val res = when {
+        key == null -> null
+        s.iconSet == "fluent" -> IconRes.fluent[key]
+        s.iconSet == "twemoji" -> IconRes.twemoji[key]
+        s.iconSet == "mono" -> IconRes.mono[key]
+        else -> null
+    }
+    Box(GlanceModifier.size(size).background(bg).cornerRadius(size * .3f), contentAlignment = Alignment.Center) {
+        when {
+            res != null && mono -> Image(
+                ImageProvider(res), contentDescription = null, modifier = GlanceModifier.size(size * .6f),
+                colorFilter = ColorFilter.tint(ColorProvider(when (s.iconTint) { "accent" -> Color(0xFF0A84FF); "bw" -> Color.White; else -> Color(color) })),
+            )
+            res != null -> Image(ImageProvider(res), contentDescription = null, modifier = GlanceModifier.size(size * if (s.iconSet == "fluent") .7f else .6f))
+            else -> Text(emoji, style = TextStyle(fontSize = (size.value * .55f).sp))
+        }
+    }
 }
 
 @Composable
 private fun TileS(s: AppState, slot: Slot, lang: String, size: Dp) {
-    val v = Sched.subj(s, slot.lesson.subj, lang); TileE(v.emoji, v.color, size)
+    val v = Sched.subj(s, slot.lesson.subj, lang); TileE(s, v.emoji, v.color, size)
 }
 
 private fun name(s: AppState, slot: Slot, lang: String) = Sched.subj(s, slot.lesson.subj, lang).name
@@ -168,7 +191,7 @@ class W22 : LessonWidget() {
             } else {
                 Lb(Tr.t(lang, if (n.phase == Phase.BEFORE) "soon" else "break"), atNext(n))
                 Row(GlanceModifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TileE("☕", 0xFFFF9F0A, 32.dp)
+                    TileE(s, "☕", 0xFFFF9F0A, 32.dp)
                     Spacer(GlanceModifier.width(9.dp))
                     Column {
                         Text(Tr.t(lang, "break"), style = st(15.sp, bold = true), maxLines = 1)
@@ -241,7 +264,7 @@ class W21 : LessonWidget() {
                         Mt(Tr.t(lang, "lessonsCnt", nd.size) + " · " + Tr.t(lang, "from", Tr.hm(f.start)))
                     }
                 } else {
-                    TileE(I.em, 0xFF8E8E93, 36.dp)
+                    TileE(s, I.em, 0xFF8E8E93, 36.dp)
                     Spacer(GlanceModifier.width(10.dp))
                     Column(GlanceModifier.defaultWeight()) { Lb(I.day); Text(I.title, style = st(14.5.sp, bold = true), maxLines = 1) }
                 }
@@ -280,7 +303,7 @@ class W12 : LessonWidget() {
                 } else {
                     Lb(I.day, size = 8.5.sp, center = true)
                     Spacer(GlanceModifier.defaultWeight())
-                    TileE(I.em, 0xFF8E8E93, 34.dp)
+                    TileE(s, I.em, 0xFF8E8E93, 34.dp)
                     Text(I.title, style = st(10.5.sp, bold = true), maxLines = 3)
                     Spacer(GlanceModifier.defaultWeight())
                 }

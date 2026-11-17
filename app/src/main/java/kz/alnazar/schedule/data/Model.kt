@@ -48,6 +48,9 @@ data class AppState(
     val widgetLang: String = "ru",
     val custom: List<CustomSubject> = emptyList(),
     val widget: WidgetCfg = WidgetCfg(),
+    val iconSet: String = "android",    // android | fluent | twemoji | mono
+    val iconTint: String = "subject",   // для mono: subject | accent | bw
+    val style: String = "ios26",        // ios26 | pixel (остальные — позже)
 ) {
     val bells: List<Bell> get() = if (shift == 2) bells2 else bells1
     val schoolDays: Int get() = if (sixDays) 6 else 5

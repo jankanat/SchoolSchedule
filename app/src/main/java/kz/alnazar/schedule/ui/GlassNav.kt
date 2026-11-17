@@ -60,6 +60,9 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,7 +82,7 @@ import kotlin.math.sqrt
    ===================================================================== */
 
 private const val IND_PAD = 4f        // эллипс шире кнопки на 4dp с каждой стороны
-private const val NAV_H = 68f
+private const val NAV_H = 70f
 private const val NAV_PAD = 6f
 
 /** Пружина Apple в терминах SwiftUI: duration (с) и bounce → жёсткость k и коэффициент затухания ζ. */
@@ -195,11 +198,20 @@ private fun NavButtons(tabs: List<NavTab>, btnW: Dp, color: Color) {
                 Modifier.width(btnW).fillMaxHeight().padding(top = 6.dp, bottom = 5.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Box(Modifier.height(30.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.height(28.dp), contentAlignment = Alignment.Center) {
                     Icon(t.icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
                 }
-                Spacer(Modifier.height(2.dp))
-                Text(t.label, color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1).sp, maxLines = 1, softWrap = false)
+                Spacer(Modifier.height(3.dp))
+                // размер подписи не растёт от системного «крупного шрифта», иначе она обрезается снизу
+                val fs = LocalDensity.current.fontScale
+                Text(
+                    t.label, color = color, maxLines = 1, softWrap = false,
+                    style = TextStyle(
+                        fontSize = (10.5f / fs).sp, lineHeight = (13f / fs).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.1f / fs).sp,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both),
+                    ),
+                )
             }
         }
     }

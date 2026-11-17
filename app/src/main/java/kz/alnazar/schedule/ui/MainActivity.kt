@@ -78,7 +78,7 @@ private fun Root() {
 
     BackHandler(enabled = ui.sheet != null || ui.page != null) { if (ui.sheet != null) ui.close() else ui.back() }
 
-    CompositionLocalProvider(LocalUi provides ui) {
+    CompositionLocalProvider(LocalUi provides ui, LocalIcons provides IconPrefs(st.iconSet, st.iconTint)) {
         Box(Modifier.fillMaxSize()) {
             // содержимое записывается в слой — по нему меню делает размытие и преломление
             Box(

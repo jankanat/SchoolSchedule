@@ -82,18 +82,11 @@ fun ScheduleScreen(st: AppState) {
         }
         if (view == "days") {
             item {
-                Row(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    (0 until nd).forEach { k ->
-                        val on = k == sel
-                        val has = st.overrides.any { it.week == wk && it.day == k }
-                        Box(
-                            Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if (on) T.acc else T.s1).tap { sel = k }.padding(vertical = 9.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(Tr.dayShort(lang, k), color = if (on) T.accTx else T.tx2, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
-                            if (has) Box(Modifier.align(Alignment.TopEnd).padding(end = 6.dp).size(6.dp).background(Color(0xFFFF9F0A), CircleShape))
-                        }
-                    }
+                Box(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
+                    EqualPills(
+                        (0 until nd).map { it to Tr.dayShort(lang, it) }, sel,
+                        dots = st.overrides.filter { it.week == wk }.map { it.day }.toSet(),
+                    ) { sel = it }
                 }
             }
             val date = mon.plusDays(sel.toLong())

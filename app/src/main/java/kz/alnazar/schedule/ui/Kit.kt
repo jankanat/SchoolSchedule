@@ -1,6 +1,16 @@
 package kz.alnazar.schedule.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.res.painterResource
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -190,39 +200,91 @@ fun IosSwitch(on: Boolean) {
     }
 }
 
-/* ===== Сегменты и чипы ===== */
+/* ===== Сегменты и чипы: выделение плавно переезжает к нажатому варианту ===== */
+
+private val SLIDE = spring<Dp>(dampingRatio = .82f, stiffness = 520f)
 
 @Composable
 fun <K> Seg(options: List<Pair<K, String>>, selected: K, onSelect: (K) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(T.rsg)).background(T.s2).padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        options.forEach { (k, label) ->
-            val on = k == selected
-            Box(
-                Modifier.weight(1f).clip(RoundedCornerShape(T.rsg - 3.dp))
-                    .background(if (on) T.segOn else Color.Transparent)
-                    .tap { onSelect(k) }.padding(vertical = 8.dp, horizontal = 6.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(label, color = if (on) T.tx else T.tx2, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val idx = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
+    BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(T.rsg)).background(T.s2).padding(3.dp)) {
+        val gap = 2.dp
+        val w = (maxWidth - gap * (options.size - 1)) / options.size
+        val x by animateDpAsState((w + gap) * idx, SLIDE, label = "seg")
+        Box(Modifier.matchParentSize()) {
+            Box(Modifier.offset(x = x).width(w).fillMaxHeight().shadow(1.dp, RoundedCornerShape(T.rsg - 3.dp)).clip(RoundedCornerShape(T.rsg - 3.dp)).background(T.segOn))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+            options.forEachIndexed { i, (k, label) ->
+                val c by animateColorAsState(if (i == idx) T.tx else T.tx2, tween(200), label = "segc")
+                Box(
+                    Modifier.width(w).clip(RoundedCornerShape(T.rsg - 3.dp)).tap { onSelect(k) }.padding(vertical = 8.dp, horizontal = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) { Text(label, color = c, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
+        }
+    }
+}
+
+/** Ряд одинаковых кнопок (дни недели) с переезжающей подсветкой. */
+@Composable
+fun <K> EqualPills(options: List<Pair<K, String>>, selected: K, dots: Set<K> = emptySet(), onSelect: (K) -> Unit) {
+    val idx = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val gap = 6.dp
+        val w = (maxWidth - gap * (options.size - 1)) / options.size
+        val x by animateDpAsState((w + gap) * idx, SLIDE, label = "pills")
+        val shape = RoundedCornerShape(14.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(gap)) { options.forEach { _ -> Box(Modifier.width(w).height(38.dp).clip(shape).background(T.s1)) } }
+        Box(Modifier.offset(x = x).width(w).height(38.dp).clip(shape).background(T.acc))
+        Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+            options.forEachIndexed { i, (k, label) ->
+                val c by animateColorAsState(if (i == idx) T.accTx else T.tx2, tween(200), label = "pc")
+                Box(Modifier.width(w).height(38.dp).clip(shape).tap { onSelect(k) }, contentAlignment = Alignment.Center) {
+                    Text(label, color = c, fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
+                    if (k in dots) Box(Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 6.dp).size(6.dp).background(Color(0xFFFF9F0A), CircleShape))
+                }
+            }
+        }
+    }
+}
+
+/** Чипы разной ширины: подсветка переезжает и меняет ширину под выбранный чип. */
+@Composable
+fun <K> Chips(options: List<Pair<K, String>>, selected: K?, onSelect: (K) -> Unit) {
+    val idx = options.indexOfFirst { it.first == selected }
+    val pos = remember(options.size) { mutableStateListOf(*Array(options.size) { 0f to 0f }) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val sel = pos.getOrNull(idx)
+    var chipH by remember { mutableStateOf(0) }
+    val x by animateDpAsState(with(density) { (sel?.first ?: 0f).toDp() }, SLIDE, label = "chx")
+    val w by animateDpAsState(with(density) { (sel?.second ?: 0f).toDp() }, SLIDE, label = "chw")
+    Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 2.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            options.forEachIndexed { i, (_, label) ->
+                Box(
+                    Modifier.onGloballyPositioned { c -> if (i < pos.size) pos[i] = c.positionInParent().x to c.size.width.toFloat(); chipH = c.size.height }
+                        .clip(RoundedCornerShape(99.dp)).background(T.s2).padding(vertical = 8.dp, horizontal = 14.dp),
+                ) { Text(label, color = Color.Transparent, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) }
+            }
+        }
+        if (idx >= 0 && sel != null && sel.second > 0f) Box(Modifier.offset(x = x).width(w).height(with(density) { chipH.toDp() }).clip(RoundedCornerShape(99.dp)).background(T.acc))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            options.forEachIndexed { i, (k, label) ->
+                val c by animateColorAsState(if (i == idx) T.accTx else T.tx, tween(200), label = "chc")
+                Box(Modifier.clip(RoundedCornerShape(99.dp)).tap { onSelect(k) }.padding(vertical = 8.dp, horizontal = 14.dp)) {
+                    Text(label, color = c, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
             }
         }
     }
 }
 
 @Composable
-fun <K> Chips(options: List<Pair<K, String>>, selected: K?, onSelect: (K) -> Unit) {
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        options.forEach { (k, label) -> Chip(label, k == selected) { onSelect(k) } }
-    }
-}
-
-@Composable
 fun Chip(label: String, on: Boolean, onClick: () -> Unit) {
+    val bg by animateColorAsState(if (on) T.acc else T.s2, tween(200), label = "chip")
     Box(
-        Modifier.clip(RoundedCornerShape(99.dp)).background(if (on) T.acc else T.s2).tap(onClick = onClick).padding(vertical = 8.dp, horizontal = 14.dp),
+        Modifier.clip(RoundedCornerShape(99.dp)).background(bg).tap(onClick = onClick).padding(vertical = 8.dp, horizontal = 14.dp),
     ) { Text(label, color = if (on) T.accTx else T.tx, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) }
 }
 
@@ -247,13 +309,40 @@ fun Btn(text: String, modifier: Modifier = Modifier, kind: BtnKind = BtnKind.Pri
 
 /* ===== Плитка предмета и строка урока ===== */
 
+/** Настройки иконок предметов (набор и цвет монохромных). */
+data class IconPrefs(val set: String = "android", val tint: String = "subject")
+val LocalIcons = staticCompositionLocalOf { IconPrefs() }
+
+/** Плитка предмета: системный эмодзи, Fluent 3D, Twemoji или монохромная иконка — по настройке. */
 @Composable
 fun Tile(emoji: String, color: Long, size: Dp = 40.dp, onAccent: Boolean = false) {
-    Box(
-        Modifier.size(size).clip(RoundedCornerShape(size * T.iconRadius))
-            .background(if (onAccent) Color.White.copy(alpha = .22f) else Color(color).copy(alpha = .24f)),
-        contentAlignment = Alignment.Center,
-    ) { Text(emoji, fontSize = (size.value * .55f).sp) }
+    val p = LocalIcons.current
+    val t = T
+    val key = IconRes.key(emoji)
+    val mono = p.set == "mono" && key != null
+    val bg = when {
+        onAccent -> Color.White.copy(alpha = .22f)
+        mono && p.tint == "accent" -> t.accSoft
+        mono && p.tint == "bw" -> t.s2
+        else -> Color(color).copy(alpha = .24f)
+    }
+    Box(Modifier.size(size).clip(RoundedCornerShape(size * t.iconRadius)).background(bg), contentAlignment = Alignment.Center) {
+        val res = when {
+            key == null -> null
+            p.set == "fluent" -> IconRes.fluent[key]
+            p.set == "twemoji" -> IconRes.twemoji[key]
+            p.set == "mono" -> IconRes.mono[key]
+            else -> null
+        }
+        when {
+            res != null && mono -> Icon(
+                painterResource(res), contentDescription = null, modifier = Modifier.size(size * .6f),
+                tint = when { onAccent -> Color.White; p.tint == "accent" -> t.acc; p.tint == "bw" -> t.tx; else -> Color(color) },
+            )
+            res != null -> Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size * if (p.set == "fluent") .7f else .6f))
+            else -> Text(emoji, fontSize = (size.value * .55f).sp)
+        }
+    }
 }
 
 enum class LsState { Normal, Cur, Past }

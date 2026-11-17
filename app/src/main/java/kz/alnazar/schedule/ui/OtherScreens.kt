@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -250,11 +251,12 @@ fun SubPage(id: String, st: AppState) {
                                 }
                             }
                         }
-                        Sec("Стиль")
+                        Sec(Tr.t(lang, "style"))
                         Chips(listOf("ios26" to "iOS 26", "ios18" to "iOS 18", "pixel" to "Pixel OS", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9"), "ios26") {}
-                        Sec("Тема")
+                        Sec(Tr.t(lang, "theme"))
                         Chips(listOf("dark" to Tr.t(lang, "th_dark")), "dark") {}
                         Card(Modifier.padding(top = 14.dp)) { Text(Tr.t(lang, "styles_soon"), color = T.tx2, fontSize = 13.5.sp) }
+                        IconSetPicker(st)
                     }
                 }
             }
@@ -308,4 +310,39 @@ private fun ColumnScope.BellSheet(i: Int) {
         }
         Btn(Tr.t(lang, "cancel"), Modifier.weight(1f), BtnKind.Ghost) { ui.close() }
     }
+}
+
+/** Выбор набора иконок предметов + цвет монохромных. */
+@Composable
+fun IconSetPicker(st: AppState) {
+    val ctx = LocalContext.current
+    val lang = st.appLang
+    val sets = listOf("android" to "ic_android", "fluent" to "ic_fluent", "twemoji" to "ic_tw", "mono" to "ic_mono")
+    val sample = listOf("algebra", "phys", "pe", "inf").mapNotNull { Catalog.find(it) }
+    Sec(Tr.t(lang, "icons"))
+    sets.chunked(2).forEach { pair ->
+        Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            pair.forEach { (id, key) ->
+                val on = st.iconSet == id
+                val shape = RoundedCornerShape(T.rc * .7f)
+                Column(
+                    Modifier.weight(1f).glass(shape).border(2.dp, if (on) T.acc else Color.Transparent, shape)
+                        .tap { Store.update(ctx) { it.copy(iconSet = id) } }.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    androidx.compose.runtime.CompositionLocalProvider(LocalIcons provides IconPrefs(id, st.iconTint)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { sample.forEach { Tile(it.emoji, it.color, 30.dp) } }
+                    }
+                    Text(Tr.t(lang, key), color = T.tx, fontSize = 14.5.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+    if (st.iconSet == "mono") {
+        Lab(Tr.t(lang, "ic_tint"))
+        Seg(listOf("subject" to Tr.t(lang, "tint_subject"), "accent" to Tr.t(lang, "tint_accent"), "bw" to Tr.t(lang, "tint_bw")), st.iconTint) { v ->
+            Store.update(ctx) { it.copy(iconTint = v) }
+        }
+    }
+    Text(Tr.t(lang, "credits"), color = T.tx2, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp))
 }

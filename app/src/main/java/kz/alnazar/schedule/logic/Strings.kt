@@ -36,7 +36,8 @@ object Tr {
         "set_look" to "Оформление", "appearance" to "Стиль и тема", "language" to "Язык", "set_school" to "Школа",
         "class_prog" to "Класс и программа", "holidays" to "Каникулы", "subjects" to "Предметы", "set_data" to "Данные",
         "import_title" to "Импорт расписания", "backup" to "Резервная копия", "set_system" to "Система", "later" to "скоро",
-        "styles_soon" to "Остальные стили и темы — следующий шаг", "th_dark" to "Тёмная",
+        "styles_soon" to "Остальные стили и темы — следующий шаг",
+        "icons" to "Иконки предметов", "ic_android" to "Android", "ic_fluent" to "Fluent 3D", "ic_tw" to "Twemoji", "ic_mono" to "Монохромные", "ic_tint" to "Цвет монохромных иконок", "tint_subject" to "Цвет предмета", "tint_accent" to "Акцентный", "tint_bw" to "Ч/Б", "credits" to "Fluent Emoji © Microsoft (MIT). Twemoji © Twitter/X и авторы, CC BY 4.0.", "style" to "Стиль", "theme" to "Тема", "th_dark" to "Тёмная",
     )
     private val kk = mapOf(
         "now" to "Қазір", "next" to "Келесі", "break" to "Үзіліс", "before" to "Сабаққа дейін",
@@ -70,7 +71,8 @@ object Tr {
         "set_look" to "Безендіру", "appearance" to "Стиль мен тақырып", "language" to "Тіл", "set_school" to "Мектеп",
         "class_prog" to "Сынып және бағдарлама", "holidays" to "Демалыс", "subjects" to "Пәндер", "set_data" to "Деректер",
         "import_title" to "Кестені импорттау", "backup" to "Сақтық көшірме", "set_system" to "Жүйе", "later" to "жақында",
-        "styles_soon" to "Басқа стильдер мен тақырыптар — келесі қадам", "th_dark" to "Қараңғы",
+        "styles_soon" to "Басқа стильдер мен тақырыптар — келесі қадам",
+        "icons" to "Пән белгішелері", "ic_android" to "Android", "ic_fluent" to "Fluent 3D", "ic_tw" to "Twemoji", "ic_mono" to "Монохромды", "ic_tint" to "Монохромды белгішелер түсі", "tint_subject" to "Пән түсі", "tint_accent" to "Акцент", "tint_bw" to "Ақ/қара", "credits" to "Fluent Emoji © Microsoft (MIT). Twemoji © Twitter/X және авторлар, CC BY 4.0.", "style" to "Стиль", "theme" to "Тақырып", "th_dark" to "Қараңғы",
     )
     private val en = mapOf(
         "now" to "Now", "next" to "Next", "break" to "Break", "before" to "Before school",
@@ -104,7 +106,8 @@ object Tr {
         "set_look" to "Look", "appearance" to "Style & theme", "language" to "Language", "set_school" to "School",
         "class_prog" to "Grade & curriculum", "holidays" to "Holidays", "subjects" to "Subjects", "set_data" to "Data",
         "import_title" to "Import timetable", "backup" to "Backup", "set_system" to "System", "later" to "soon",
-        "styles_soon" to "Other styles and themes — next step", "th_dark" to "Dark",
+        "styles_soon" to "Other styles and themes — next step",
+        "icons" to "Subject icons", "ic_android" to "Android", "ic_fluent" to "Fluent 3D", "ic_tw" to "Twemoji", "ic_mono" to "Monochrome", "ic_tint" to "Monochrome icon colour", "tint_subject" to "Subject colour", "tint_accent" to "Accent", "tint_bw" to "B/W", "credits" to "Fluent Emoji © Microsoft (MIT). Twemoji © Twitter/X and contributors, CC BY 4.0.", "style" to "Style", "theme" to "Theme", "th_dark" to "Dark",
     )
     private val all = mapOf("ru" to ru, "kk" to kk, "en" to en)
 
