@@ -93,8 +93,11 @@ fun ScheduleScreen(st: AppState) {
             val L = Sched.dayLessons(st, date)
             if (L.isEmpty()) item { Empty(Tr.t(lang, "emptyDay")) }
             itemsIndexed(L) { i, s ->
-                Box(Modifier.padding(horizontal = 16.dp)) { SlotRow(st, L, i, LsState.Normal, lang) { edit(sel, s.idx) } }
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    SlotRow(st, L, i, LsState.Normal, lang, date = date, onLong = { ui.open { LessonMenu(date, s) } }) { edit(sel, s.idx) }
+                }
             }
+            if (L.isNotEmpty()) item { Text(Tr.t(lang, "lm_hint"), color = T.tx2, fontSize = 12.5.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp)) }
             item {
                 Box(Modifier.padding(horizontal = 16.dp)) {
                     Btn("+ " + Tr.t(lang, "addLesson"), Modifier.fillMaxWidth(), BtnKind.Sec) {
@@ -157,7 +160,7 @@ private fun WeekTable(st: AppState, mon: LocalDate, nd: Int, lang: String, onEdi
 
 /** Шторка урока: выбор предмета, кабинет, «постоянно / только эта неделя». */
 @Composable
-private fun ColumnScope.LessonSheet(dayIdx: Int, i: Int, wk: String) {
+fun ColumnScope.LessonSheet(dayIdx: Int, i: Int, wk: String, scope0: String? = null) {
     val ctx = LocalContext.current
     val ui = LocalUi.current
     val st = remember { Store.state.value }
@@ -169,7 +172,7 @@ private fun ColumnScope.LessonSheet(dayIdx: Int, i: Int, wk: String) {
     var subj by remember { mutableStateOf(cur?.subj ?: "") }
     var room by remember { mutableStateOf(cur?.room ?: "") }
     var all by remember { mutableStateOf(false) }
-    var scope by remember { mutableStateOf(if (ov != null) "week" else "perm") }
+    var scope by remember { mutableStateOf(scope0 ?: if (ov != null) "week" else "perm") }
 
     val prog = Catalog.programSubjects(st.program, st.grade)
     var ids = if (all) Catalog.subjects.map { it.id } + st.custom.map { it.id } else prog + st.custom.map { it.id }
@@ -187,7 +190,7 @@ private fun ColumnScope.LessonSheet(dayIdx: Int, i: Int, wk: String) {
             val shape = RoundedCornerShape(14.dp)
             Column(
                 Modifier.clip(shape).background(if (on) T.accSoft else T.s2).border(2.dp, if (on) T.acc else Color.Transparent, shape)
-                    .tap { subj = id; if (room.isBlank()) room = Catalog.roomOf(id) }.padding(horizontal = 4.dp, vertical = 8.dp),
+                    .tap { subj = id; if (room.isBlank()) room = st.custom.firstOrNull { it.id == id }?.room ?: Catalog.roomOf(id) }.padding(horizontal = 4.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Tile(v.emoji, v.color, 32.dp)

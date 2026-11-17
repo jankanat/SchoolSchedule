@@ -45,6 +45,7 @@ object Store {
         tmp.writeText(json.encodeToString(AppState.serializer(), next))
         tmp.renameTo(file)
         WidgetUpdater.refresh(ctx.applicationContext)
+        runCatching { kz.alnazar.schedule.widget.Notif.schedule(ctx.applicationContext) }
     }
 
     /** Только в памяти, без записи и обновления виджетов — для живого предпросмотра при перетаскивании. */

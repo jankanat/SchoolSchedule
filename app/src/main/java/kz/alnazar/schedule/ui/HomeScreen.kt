@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import java.time.LocalDate
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,7 +33,10 @@ import kz.alnazar.schedule.logic.Tr
 
 /** Строка урока из модели дня: подпись кабинета («в том же кабинете»), замена с зачёркнутым исходным предметом. */
 @Composable
-fun SlotRow(st: AppState, list: List<Slot>, i: Int, state: LsState, lang: String, onClick: (() -> Unit)? = null) {
+fun SlotRow(
+    st: AppState, list: List<Slot>, i: Int, state: LsState, lang: String,
+    date: LocalDate? = null, onLong: (() -> Unit)? = null, onClick: (() -> Unit)? = null,
+) {
     val s = list[i]
     val v = Sched.subj(st, s.lesson.subj, lang)
     val orig = if (s.replaced) st.week.getOrNull(s.dayIdx)?.getOrNull(s.idx)?.let { Sched.subj(st, it.subj, lang).name } else null
@@ -41,6 +46,7 @@ fun SlotRow(st: AppState, list: List<Slot>, i: Int, state: LsState, lang: String
         tag = if (s.replaced) Tr.t(lang, "replaced") else null,
         was = orig?.takeIf { it != v.name }, onClick = onClick,
         first = i == 0, last = i == list.lastIndex,
+        hw = date != null && Sched.hasHw(st, s.lesson.subj, date), onLongClick = onLong,
     )
 }
 
@@ -48,6 +54,7 @@ fun SlotRow(st: AppState, list: List<Slot>, i: Int, state: LsState, lang: String
 fun HomeScreen(st: AppState, clock: Long) {
     val n = remember(st, clock) { Sched.now(st) }
     val lang = st.appLang
+    val ui = LocalUi.current
     Page {
         item { Hdr(Tr.dateTitle(lang, n.date), Tr.t(lang, "hello_sub", st.grade, st.shift)) }
         item { Box(Modifier.padding(horizontal = 16.dp)) { Hero(st, n) } }
@@ -56,16 +63,30 @@ fun HomeScreen(st: AppState, clock: Long) {
             val past = when (n.phase) { Phase.LESSON -> n.cur - 1; Phase.BREAK -> n.prev; Phase.AFTER -> n.today.size - 1; else -> -1 }
             itemsIndexed(n.today) { i, _ ->
                 Box(Modifier.padding(horizontal = 16.dp)) {
-                    SlotRow(st, n.today, i, if (n.phase == Phase.LESSON && i == n.cur) LsState.Cur else if (i <= past) LsState.Past else LsState.Normal, lang)
+                    val sl = n.today[i]
+                    SlotRow(st, n.today, i, if (n.phase == Phase.LESSON && i == n.cur) LsState.Cur else if (i <= past) LsState.Past else LsState.Normal, lang,
+                        date = n.date, onLong = { ui.open { LessonMenu(n.date, sl) } })
                 }
             }
         } else if (n.nextDay != null) {
             val nd = n.nextDay
             item { Box(Modifier.padding(horizontal = 16.dp)) { Sec(Tr.t(lang, "nearest") + " · " + Sched.dayLabel(lang, n.date, nd)) } }
             itemsIndexed(n.nextDayLessons) { i, _ ->
-                Box(Modifier.padding(horizontal = 16.dp)) { SlotRow(st, n.nextDayLessons, i, LsState.Normal, lang) }
+                val sl = n.nextDayLessons[i]
+                Box(Modifier.padding(horizontal = 16.dp)) { SlotRow(st, n.nextDayLessons, i, LsState.Normal, lang, date = nd, onLong = { ui.open { LessonMenu(nd, sl) } }) }
             }
         }
+        // «Скоро сдавать» — три ближайших невыполненных задания
+        val todo = Sched.todo(st).take(3)
+        item {
+            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { Sec(Tr.t(lang, "hw_soon")) }
+                Text("+ " + Tr.t(lang, "add"), color = T.acc, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 14.dp).tap { ui.open { HwSheet(null, "hw") } })
+            }
+        }
+        if (todo.isEmpty()) item { Box(Modifier.padding(horizontal = 16.dp)) { Text(Tr.t(lang, "no_hw"), color = T.tx2, fontSize = 14.sp, modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)) } }
+        items(todo, key = { it.id }) { h -> Box(Modifier.padding(horizontal = 16.dp)) { HwItem(st, h, n.date) } }
     }
 }
 
@@ -122,6 +143,7 @@ private fun Hero(st: AppState, n: Now) {
                     Text(I.em, fontSize = 38.sp)
                     Column {
                         Text(I.title, color = fg, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        if (I.sub.isNotEmpty()) Text(I.sub, color = fg.copy(alpha = .9f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                         if (I.day.isNotEmpty()) Text(Tr.t(lang, "nearest") + ": " + I.day, color = fg.copy(alpha = .85f), fontSize = 13.5.sp)
                     }
                 }

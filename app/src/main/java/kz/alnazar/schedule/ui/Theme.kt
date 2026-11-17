@@ -11,6 +11,10 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.Font
+import androidx.compose.material3.LocalTextStyle
+import kz.alnazar.schedule.R
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -212,8 +216,24 @@ val LocalTok = staticCompositionLocalOf { Ios26Dark }
 /** Короткий доступ к токенам из любого компонента. */
 val T: Tok @Composable get() = LocalTok.current
 
+/** Встроенные шрифты (Google Fonts, OFL): переменные, вес подстраивается сам. */
+private fun vf(res: Int) = FontFamily(
+    listOf(FontWeight.Normal, FontWeight.Medium, FontWeight.SemiBold, FontWeight.Bold).map { Font(res, it) },
+)
+private val FF_ROUNDED by lazy { vf(R.font.f_rounded) }
+private val FF_SERIF by lazy { vf(R.font.f_serif) }
+private val FF_MONO by lazy { vf(R.font.f_mono) }
+private val FF_HAND by lazy { vf(R.font.f_hand) }
+
+fun fontFamily(id: String): FontFamily? = when (id) {
+    "rounded" -> FF_ROUNDED; "serif" -> FF_SERIF; "mono" -> FF_MONO; "hand" -> FF_HAND; else -> null
+}
+
+/** Ползунок «Скругление углов»: множитель радиусов стиля. */
+fun Tok.withRadius(k: Float): Tok = if (k == 1f) this else copy(rc = rc * k, rsg = rsg * k, iconRadius = (iconRadius * k).coerceAtMost(.5f))
+
 @Composable
-fun AppTheme(tok: Tok = Ios26Dark, content: @Composable () -> Unit) {
+fun AppTheme(tok: Tok = Ios26Dark, font: String = "style", content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (tok.isDark) darkColorScheme(
             primary = tok.acc, onPrimary = tok.accTx, background = tok.bg.first(), surface = tok.sheet,
@@ -222,5 +242,9 @@ fun AppTheme(tok: Tok = Ios26Dark, content: @Composable () -> Unit) {
             primary = tok.acc, onPrimary = tok.accTx, background = tok.bg.first(), surface = tok.sheet,
             onSurface = tok.tx, onBackground = tok.tx,
         ),
-    ) { CompositionLocalProvider(LocalTok provides tok, content = content) }
+    ) {
+        val ff = fontFamily(font)
+        val ts = LocalTextStyle.current
+        CompositionLocalProvider(LocalTok provides tok, LocalTextStyle provides if (ff != null) ts.copy(fontFamily = ff) else ts, content = content)
+    }
 }

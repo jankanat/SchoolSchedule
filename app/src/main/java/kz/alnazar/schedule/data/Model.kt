@@ -18,9 +18,42 @@ data class Bell(val start: Int, val end: Int)
 @Serializable
 data class Override(val week: String, val day: Int, val idx: Int, val lesson: Lesson?)
 
-/** Свой предмет школы. */
+/**
+ * Свой предмет школы. img — имя файла картинки из галереи (в папке icons), если выбрана картинка вместо эмодзи.
+ * room — кабинет по умолчанию.
+ */
 @Serializable
-data class CustomSubject(val id: String, val name: String, val emoji: String, val color: Long)
+data class CustomSubject(val id: String, val name: String, val emoji: String, val color: Long, val img: String? = null, val room: String = "")
+
+/**
+ * Запись во вкладке «Задания».
+ * kind: hw — домашка (у неё есть предмет и срок), note — заметка (предмет и срок по желанию).
+ * due — дата сдачи ISO («2026-11-18»), photos — имена файлов в папке photos.
+ */
+@Serializable
+data class Hw(
+    val id: Long,
+    val kind: String = "hw",
+    val subj: String? = null,
+    val text: String = "",
+    val due: String? = null,
+    val done: Boolean = false,
+    val photos: List<String> = emptyList(),
+    val created: Long = 0,
+)
+
+/** Каникулы: с from по to включительно (ISO-даты). */
+@Serializable
+data class Holiday(val id: Long, val name: String, val from: String, val to: String)
+
+/** Напоминания о домашке. */
+@Serializable
+data class NotifCfg(
+    val evening: Boolean = false,       // вечером накануне — список на следующий учебный день
+    val eveningAt: Int = 19 * 60,
+    val before: Boolean = false,        // перед уроком, к которому задано
+    val beforeMin: Int = 30,
+)
 
 /** Что показывать на маленьких виджетах (2×1 и 1×2) и в день без уроков. */
 @Serializable
@@ -31,6 +64,7 @@ data class WidgetCfg(
     val idleNextDay: Boolean = true,    // таблица ближайшего учебного дня
     val time: Boolean = true,           // показывать время урока
     val room: Boolean = true,           // показывать кабинет
+    val hw: Boolean = true,             // значок 📝 у урока с невыполненной домашкой
 )
 
 /** Своя тема: акцентный и основной цвет (тон по кругу, насыщенность, яркость Ч/Б) и прозрачность поверхностей. */
@@ -61,6 +95,11 @@ data class AppState(
     val style: String = "ios26",        // ios26 | pixel | ios18 | color | origin | oneui
     val theme: String = "dark",         // dark | custom
     val ct: CustomTheme = CustomTheme(),
+    val hw: List<Hw> = emptyList(),
+    val holidays: List<Holiday> = Catalog.holidayTemplate("kz"),
+    val notif: NotifCfg = NotifCfg(),
+    val rs: Float = 1f,                 // скругление углов, 0..1.5 от стиля
+    val font: String = "style",         // style | system | rounded | serif | mono | hand
 ) {
     val bells: List<Bell> get() = if (shift == 2) bells2 else bells1
     val schoolDays: Int get() = if (sixDays) 6 else 5

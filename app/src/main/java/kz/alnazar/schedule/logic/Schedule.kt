@@ -4,6 +4,8 @@ import kz.alnazar.schedule.data.AppState
 import kz.alnazar.schedule.data.Bell
 import kz.alnazar.schedule.data.Catalog
 import kz.alnazar.schedule.data.Lesson
+import kz.alnazar.schedule.data.Holiday
+import kz.alnazar.schedule.data.Hw
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -17,12 +19,13 @@ data class Slot(
     val end: Int,
     val replaced: Boolean,
     val dayIdx: Int = 0,
+    val date: LocalDate? = null,
 )
 
 /** Отображаемые данные предмета: название, эмодзи, цвет. */
-data class SubjView(val name: String, val emoji: String, val color: Long)
+data class SubjView(val name: String, val emoji: String, val color: Long, val img: String? = null)
 
-enum class Phase { LESSON, BREAK, BEFORE, AFTER, DAYOFF, EMPTY }
+enum class Phase { LESSON, BREAK, BEFORE, AFTER, DAYOFF, EMPTY, HOLIDAY }
 
 /** Всё, что нужно и главному экрану, и виджетам, — одна модель на всех. */
 data class Now(
@@ -36,6 +39,7 @@ data class Now(
     val minutesLeft: Int = 0,
     val nextDay: LocalDate? = null,
     val nextDayLessons: List<Slot> = emptyList(),
+    val holiday: Holiday? = null,
 )
 
 object Sched {
@@ -43,7 +47,7 @@ object Sched {
 
     fun subj(st: AppState, id: String, lang: String): SubjView {
         Catalog.find(id)?.let { return SubjView(it.name(lang), it.emoji, it.color) }
-        st.custom.firstOrNull { it.id == id }?.let { return SubjView(it.name, it.emoji, it.color) }
+        st.custom.firstOrNull { it.id == id }?.let { return SubjView(it.name, if (it.img != null) "img:" + it.img else it.emoji, it.color, it.img) }
         return SubjView(id, "📘", 0xFF8E8E93)
     }
 
@@ -62,7 +66,7 @@ object Sched {
             val lesson: Lesson? = if (o != null) o.lesson else base.getOrNull(i)
             if (lesson == null) continue
             val b = bells.getOrNull(i) ?: continue
-            out += Slot(i, lesson, b.start, b.end, o != null, dow)
+            out += Slot(i, lesson, b.start, b.end, o != null, dow, d)
         }
         return out
     }
@@ -82,10 +86,15 @@ object Sched {
      * Ближайший учебный день после сегодняшнего:
      * в пятницу/субботу после уроков — понедельник, в воскресенье — завтра.
      */
+    fun holiday(st: AppState, d: LocalDate): Holiday? {
+        val k = d.toString()
+        return st.holidays.firstOrNull { k >= it.from && k <= it.to }
+    }
+
     fun nextSchoolDay(st: AppState, from: LocalDate): LocalDate? {
         var d = from.plusDays(1)
-        repeat(21) {
-            if (dayLessons(st, d).isNotEmpty()) return d
+        repeat(120) {
+            if (holiday(st, d) == null && dayLessons(st, d).isNotEmpty()) return d
             d = d.plusDays(1)
         }
         return null
@@ -99,6 +108,7 @@ object Sched {
             val nd = nextSchoolDay(st, d)
             return Now(d, m, p, list, nextDay = nd, nextDayLessons = nd?.let { dayLessons(st, it) } ?: emptyList())
         }
+        holiday(st, d)?.let { h -> return idle(Phase.HOLIDAY).copy(today = emptyList(), holiday = h) }
         if (d.dayOfWeek.value - 1 >= st.schoolDays) return idle(Phase.DAYOFF)
         if (list.isEmpty()) return idle(Phase.EMPTY)
         list.forEachIndexed { i, s ->
@@ -117,22 +127,49 @@ object Sched {
     fun nextBoundary(st: AppState, t: LocalDateTime = LocalDateTime.now()): LocalDateTime {
         val d = t.toLocalDate()
         val m = t.hour * 60 + t.minute
-        val marks = dayLessons(st, d).flatMap { listOf(it.start, it.end) }.filter { it > m }.sorted()
+        val marks = (if (holiday(st, d) != null) emptyList() else dayLessons(st, d)).flatMap { listOf(it.start, it.end) }.filter { it > m }.sorted()
         return if (marks.isNotEmpty()) d.atStartOfDay().plusMinutes(marks.first().toLong())
         else d.plusDays(1).atStartOfDay().plusMinutes(1)
     }
 
     /** Подпись дня без уроков: эмодзи, заголовок и ближайший учебный день. */
-    data class IdleInfo(val em: String, val title: String, val day: String)
+    data class IdleInfo(val em: String, val title: String, val day: String, val sub: String = "")
 
     fun idle(n: Now, lang: String): IdleInfo {
         val (em, key) = when (n.phase) {
             Phase.AFTER -> "✅" to "doneToday"
             Phase.DAYOFF -> "😴" to "weekend"
+            Phase.HOLIDAY -> "🏖️" to "holiday"
             else -> "💤" to "noLessons"
         }
-        return IdleInfo(em, Tr.t(lang, key), n.nextDay?.let { dayLabel(lang, n.date, it) } ?: "")
+        val sub = n.holiday?.let { Tr.t(lang, "holUntil", Tr.dateShort(lang, LocalDate.parse(it.to))) } ?: ""
+        return IdleInfo(em, Tr.t(lang, key), n.nextDay?.let { dayLabel(lang, n.date, it) } ?: "", sub)
     }
+
+    /* ===== Домашка ===== */
+
+    /** Есть ли невыполненная домашка по предмету к этой дате. */
+    fun hasHw(st: AppState, subj: String, d: LocalDate): Boolean {
+        val k = d.toString()
+        return st.hw.any { it.kind == "hw" && !it.done && it.subj == subj && it.due == k }
+    }
+
+    /** Отметка 📝 для урока (если включена в настройках виджета). */
+    fun hwMark(st: AppState, s: Slot): String =
+        if (st.widget.hw && s.date != null && hasHw(st, s.lesson.subj, s.date)) " 📝" else ""
+
+    /** Срок по умолчанию — ближайший следующий урок этого предмета (не сегодня). */
+    fun nextLessonDate(st: AppState, subj: String, from: LocalDate = LocalDate.now()): LocalDate? {
+        var d = from.plusDays(1)
+        repeat(120) {
+            if (holiday(st, d) == null && dayLessons(st, d).any { it.lesson.subj == subj }) return d
+            d = d.plusDays(1)
+        }
+        return null
+    }
+
+    /** Активные задания, отсортированные по сроку. */
+    fun todo(st: AppState): List<Hw> = st.hw.filter { it.kind == "hw" && !it.done }.sortedBy { it.due ?: "9999" }
 
     /** «08:30–09:15 · каб. 204» с учётом настроек показа времени и кабинета. */
     fun meta(list: List<Slot>, pos: Int, lang: String, time: Boolean = true, room: Boolean = true, startOnly: Boolean = false): String {
@@ -145,5 +182,12 @@ object Sched {
 
     fun dayLabel(lang: String, today: LocalDate, d: LocalDate): String =
         if (d == today.plusDays(1)) Tr.t(lang, "tomorrow")
+        else if (d.toEpochDay() - today.toEpochDay() > 6) Tr.dayLong(lang, d.dayOfWeek.value - 1) + ", " + Tr.dateShort(lang, d)
         else Tr.dayLong(lang, d.dayOfWeek.value - 1)
+
+    /** «Сегодня», «Завтра», «пт, 21 нояб.» — подпись срока сдачи. */
+    fun dueLabel(lang: String, today: LocalDate, d: LocalDate): String = when (d.toEpochDay() - today.toEpochDay()) {
+        0L -> Tr.t(lang, "today"); 1L -> Tr.t(lang, "tomorrow")
+        else -> Tr.dayShort(lang, d.dayOfWeek.value - 1) + ", " + Tr.dateShort(lang, d)
+    }
 }

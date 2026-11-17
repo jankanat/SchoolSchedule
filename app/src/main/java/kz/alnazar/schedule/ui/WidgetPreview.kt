@@ -102,7 +102,7 @@ fun WidgetPreview(size: String, st: AppState, n: Now, lang: String) {
     val cfg = st.widget
     val live = n.phase == Phase.LESSON || n.phase == Phase.BREAK || n.phase == Phase.BEFORE
     val L = n.today
-    fun sv(s: Slot) = Sched.subj(st, s.lesson.subj, lang)
+    fun sv(s: Slot) = Sched.subj(st, s.lesson.subj, lang).let { it.copy(name = it.name + Sched.hwMark(st, s)) }
     val idle = Sched.idle(n, lang)
     val nd = n.nextDayLessons
     when (size) {
@@ -259,7 +259,7 @@ private fun RowMini(s: Slot, emoji: String, color: Long, name: String) {
 
 @Composable
 private fun ColumnScope.Lr(st: AppState, L: List<Slot>, i: Int, lang: String, state: LsState) {
-    val s = L[i]; val v = Sched.subj(st, s.lesson.subj, lang)
+    val s = L[i]; val v = Sched.subj(st, s.lesson.subj, lang).let { it.copy(name = it.name + Sched.hwMark(st, s)) }
     val a = if (state == LsState.Past) .42f else 1f
     Row(
         Modifier.weight(1f, fill = false).heightIn(max = 36.dp).fillMaxWidth().clip(RoundedCornerShape(11.dp))
@@ -281,7 +281,7 @@ private fun ColumnScope.Cols(st: AppState, L: List<Slot>, start: Int, cur: Int, 
     Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         val items = L.drop(start).take(4)
         items.forEachIndexed { k, s ->
-            val i = start + k; val v = Sched.subj(st, s.lesson.subj, lang)
+            val i = start + k; val v = Sched.subj(st, s.lesson.subj, lang).let { it.copy(name = it.name + Sched.hwMark(st, s)) }
             val isCur = i == cur
             val shape = RoundedCornerShape(14.dp)
             var m = Modifier.weight(1f).fillMaxHeight().clip(shape).background(if (isCur) T.accSoft else T.tx.copy(alpha = .07f))

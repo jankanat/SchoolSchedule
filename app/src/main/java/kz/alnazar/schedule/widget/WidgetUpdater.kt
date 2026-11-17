@@ -86,6 +86,7 @@ class SystemReceiver : BroadcastReceiver() {
             try {
                 runCatching { WidgetUpdater.updateAllNow(app) }
                 WidgetUpdater.scheduleNext(app)
+                runCatching { Notif.schedule(app) }
             } finally {
                 pending.finish()
             }

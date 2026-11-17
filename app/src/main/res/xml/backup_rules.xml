@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Автобэкап Google (Android 11 и ниже): состояние и иконки (фото не входят — лимит 25 МБ) -->
+<full-backup-content>
+    <include domain="file" path="state.json" />
+        <include domain="file" path="icons/" />
+</full-backup-content>

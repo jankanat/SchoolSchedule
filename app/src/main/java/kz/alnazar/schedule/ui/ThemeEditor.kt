@@ -177,8 +177,9 @@ private fun ColorWheel(h: Float, s: Float, l: Float, modifier: Modifier, onChang
 
 /** Ползунок с градиентной дорожкой и круглым бегунком. */
 @Composable
-private fun GradSlider(
+fun GradSlider(
     label: String, value: Float, colors: List<Color>, knobColor: Color, checker: Boolean = false, min: Float = 0f,
+    fmt: (Float) -> String = { "${(it * 100).roundToInt()}%" },
     onChange: (Float) -> Unit, onEnd: () -> Unit,
 ) {
     val change by rememberUpdatedState(onChange)
@@ -187,7 +188,7 @@ private fun GradSlider(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row {
             Text(label, color = t.tx, fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Text("${(value * 100).roundToInt()}%", color = t.tx2, fontSize = 14.sp)
+            Text(fmt(value), color = t.tx2, fontSize = 14.sp)
         }
         BoxWithConstraints(Modifier.fillMaxWidth().height(30.dp)) {
             val d = LocalDensity.current

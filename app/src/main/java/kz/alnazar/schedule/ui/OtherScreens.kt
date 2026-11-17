@@ -102,28 +102,12 @@ fun WidgetsScreen(st: AppState, clock: Long) {
                     }
                     RowDivider(); TgRow(Tr.t(lang, "w_room"), st.widget.room) { v -> upd { it.copy(room = v) } }
                     RowDivider(); TgRow(Tr.t(lang, "w_time"), st.widget.time) { v -> upd { it.copy(time = v) } }
+                    RowDivider(); TgRow(Tr.t(lang, "w_hw"), st.widget.hw) { v -> upd { it.copy(hw = v) } }
                     RowDivider(); TgRow(Tr.t(lang, "idleNo"), st.widget.idleNoLessons) { v -> upd { it.copy(idleNoLessons = v) } }
                     RowDivider(); TgRow(Tr.t(lang, "idleNext"), st.widget.idleNextDay) { v -> upd { it.copy(idleNextDay = v) } }
                 }
                 Sec(Tr.t(lang, "w_add"))
                 Card { Text(Tr.t(lang, "w_add_hint"), color = T.tx2, fontSize = 13.5.sp) }
-            }
-        }
-    }
-}
-
-/* ===================== ЗАДАНИЯ (этап 4) ===================== */
-
-@Composable
-fun HwScreen(st: AppState) {
-    val lang = st.appLang
-    var tab by rememberSaveable { mutableStateOf("hw") }
-    Page {
-        item { Hdr(Tr.t(lang, "hw_title")) }
-        item {
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                Seg(listOf("hw" to Tr.t(lang, "hw_tab_hw"), "note" to Tr.t(lang, "hw_tab_notes")), tab) { tab = it }
-                Empty(Tr.t(lang, "stage4"))
             }
         }
     }
@@ -143,7 +127,7 @@ fun SettingsScreen(st: AppState) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Sec(Tr.t(lang, "set_look"))
                 Group {
-                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (mapOf("ios26" to "iOS 26", "pixel" to "Pixel OS", "ios18" to "iOS 18", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9")[st.style] ?: "iOS 26") + " · " + Tr.t(lang, "th_dark")) { ui.go("appearance") }
+                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (mapOf("ios26" to "iOS 26", "pixel" to "Pixel OS", "ios18" to "iOS 18", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9")[st.style] ?: "iOS 26") + " · " + Tr.t(lang, if (st.theme == "custom") "th_custom" else "th_dark")) { ui.go("appearance") }
                     RowDivider()
                     SetRow("🌐", 0xFF0A84FF, Tr.t(lang, "language"), "${st.appLang.uppercase()} · ${Tr.t(lang, "tab_widgets")}: ${st.widgetLang.uppercase()}") { ui.go("language") }
                 }
@@ -154,18 +138,25 @@ fun SettingsScreen(st: AppState) {
                     val b = st.bells
                     SetRow("🔔", 0xFFFF453A, Tr.t(lang, "bells"), if (b.isEmpty()) "" else Tr.hm(b.first().start) + "–" + Tr.hm(b[minOf(6, b.size - 1)].end)) { ui.go("bells") }
                     RowDivider()
-                    SetRow("🏖️", 0xFF30D158, Tr.t(lang, "holidays"), later, enabled = false) {}
+                    val hn = Sched.holiday(st, java.time.LocalDate.now())
+                    SetRow("🏖️", 0xFF30D158, Tr.t(lang, "holidays"), if (hn != null) hn.name + " · " + Tr.t(lang, "hol_now") else "${st.holidays.size}") { ui.go("holidays") }
                     RowDivider()
-                    SetRow("📚", 0xFF5E5CE6, Tr.t(lang, "subjects"), later, enabled = false) {}
+                    SetRow("📚", 0xFF5E5CE6, Tr.t(lang, "subjects"), Tr.t(lang, "subj_mine") + ": ${st.custom.size}") { ui.go("subjects") }
                 }
                 Sec(Tr.t(lang, "set_data"))
                 Group {
                     SetRow("📥", 0xFF32ADE6, Tr.t(lang, "import_title"), "ML Kit · Gemini · $later", enabled = false) {}
                     RowDivider()
-                    SetRow("💾", 0xFF8E8E93, Tr.t(lang, "backup"), "JSON · $later", enabled = false) {}
+                    SetRow("💾", 0xFF8E8E93, Tr.t(lang, "backup"), Tr.t(lang, "exp") + " · " + Tr.t(lang, "imp_json") + " · Google") { ui.go("backup") }
                 }
                 Sec(Tr.t(lang, "set_system"))
                 Group {
+                    val nOn = listOfNotNull(
+                        if (st.notif.evening) Tr.hm(st.notif.eveningAt) else null,
+                        if (st.notif.before) Tr.t(lang, "n_min", st.notif.beforeMin) else null,
+                    )
+                    SetRow("📝", 0xFFFF375F, Tr.t(lang, "notif"), if (nOn.isEmpty()) "—" else nOn.joinToString(" · ")) { ui.go("notif") }
+                    RowDivider()
                     val ok = WidgetUpdater.canExact(ctx)
                     SetRow("⏰", 0xFFFF9F0A, Tr.t(lang, "exactAlarm"), Tr.t(lang, if (ok) "exactAlarmOn" else "exactAlarmHint"), enabled = !ok) {
                         ctx.startActivity(
@@ -238,6 +229,22 @@ fun SubPage(id: String, st: AppState) {
                     }
                 }
             }
+            "holidays" -> {
+                item { HdrBack(Tr.t(lang, "holidays")) { ui.back() } }
+                item { HolidaysPage(st) }
+            }
+            "subjects" -> {
+                item { HdrBack(Tr.t(lang, "subjects")) { ui.back() } }
+                item { SubjectsPage(st) }
+            }
+            "backup" -> {
+                item { HdrBack(Tr.t(lang, "backup")) { ui.back() } }
+                item { BackupPage(st) }
+            }
+            "notif" -> {
+                item { HdrBack(Tr.t(lang, "notif")) { ui.back() } }
+                item { NotifPage(st) }
+            }
             else -> {
                 item { HdrBack(Tr.t(lang, "appearance")) { ui.back() } }
                 item {
@@ -259,6 +266,7 @@ fun SubPage(id: String, st: AppState) {
                             Store.update(ctx) { it.copy(theme = th) }
                         }
                         if (st.theme == "custom") { VSpace(12.dp); CustomThemeEditor(st) }
+                        FontAndCorners(st)
                         IconSetPicker(st)
                     }
                 }

@@ -7,6 +7,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kz.alnazar.schedule.data.Files
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.Icon
@@ -52,6 +59,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +109,17 @@ private val noRipple = MutableInteractionSource()
 fun Modifier.tap(enabled: Boolean = true, onClick: () -> Unit): Modifier =
     if (T.pixel) this.clickable(enabled = enabled, onClick = onClick)
     else this.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, enabled = enabled, onClick = onClick)
+
+/** Нажатие и долгое нажатие (меню урока). */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun Modifier.tapLong(onLongClick: (() -> Unit)?, onClick: () -> Unit): Modifier {
+    if (onLongClick == null) return tap(onClick = onClick)
+    val hf = LocalHapticFeedback.current
+    val long = { hf.performHapticFeedback(HapticFeedbackType.LongPress); onLongClick() }
+    return if (T.pixel) this.combinedClickable(onLongClick = long, onClick = onClick)
+    else this.combinedClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onLongClick = long, onClick = onClick)
+}
 
 /* ===== Заголовки ===== */
 
@@ -408,6 +427,14 @@ val LocalIcons = staticCompositionLocalOf { IconPrefs() }
 fun Tile(emoji: String, color: Long, size: Dp = 40.dp, onAccent: Boolean = false) {
     val p = LocalIcons.current
     val t = T
+    // своя картинка предмета из галереи — на всю плитку
+    if (emoji.startsWith("img:")) {
+        val bmp = remember(emoji, Files.ver.intValue) { Files.iconBitmap(emoji.removePrefix("img:"))?.asImageBitmap() }
+        Box(Modifier.size(size).clip(RoundedCornerShape(size * t.iconRadius)).background(Color(color).copy(alpha = .24f)), contentAlignment = Alignment.Center) {
+            if (bmp != null) Image(bmp, null, Modifier.size(size), contentScale = ContentScale.Crop)
+        }
+        return
+    }
     val key = IconRes.key(emoji)
     val mono = p.set == "mono" && key != null
     val bg = when {
@@ -424,7 +451,10 @@ fun Tile(emoji: String, color: Long, size: Dp = 40.dp, onAccent: Boolean = false
             p.set == "mono" -> IconRes.mono[key]
             else -> null
         }
+        // эмодзи не из встроенного набора — скачанная версия Fluent 3D / Twemoji, если есть
+        val dl = if (res == null) remember(emoji, p.set, Files.ver.intValue) { Files.emojiFile(p.set, emoji)?.let { Files.bitmap(it) }?.asImageBitmap() } else null
         when {
+            dl != null -> Image(dl, null, Modifier.size(size * if (p.set == "fluent") .7f else .6f))
             res != null && mono -> Icon(
                 painterResource(res), contentDescription = null, modifier = Modifier.size(size * .6f),
                 tint = when { onAccent -> Color.White; p.tint == "accent" -> t.acc; p.tint == "bw" -> t.tx; else -> Color(color) },
@@ -443,7 +473,7 @@ fun LessonRow(
     num: Int, emoji: String, color: Long, name: String, sub: String,
     start: String, end: String, state: LsState = LsState.Normal,
     tag: String? = null, was: String? = null, onClick: (() -> Unit)? = null,
-    first: Boolean = true, last: Boolean = true,
+    first: Boolean = true, last: Boolean = true, hw: Boolean = false, onLongClick: (() -> Unit)? = null,
 ) {
     val big = T.rc * .75f
     val shape = if (T.pixel) RoundedCornerShape(topStart = if (first) big else 6.dp, topEnd = if (first) big else 6.dp,
@@ -454,7 +484,7 @@ fun LessonRow(
         state == LsState.Cur -> m.clip(shape).background(T.accSoft, shape).border(1.5.dp, T.acc, shape)
         else -> m.glass(shape)
     }
-    if (onClick != null) m = m.tap(onClick = onClick)
+    if (onClick != null || onLongClick != null) m = m.tapLong(onLongClick) { onClick?.invoke() }
     val a = if (state == LsState.Past) .5f else 1f
     Row(m.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
         Text("$num", color = T.tx2.copy(alpha = a), fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(16.dp))
@@ -465,9 +495,9 @@ fun LessonRow(
                 if (tag != null) Text(tag, color = Color(0xFFFF9F0A), fontSize = 10.5.sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(Color(0x3DFF9F0A)).padding(horizontal = 7.dp, vertical = 2.dp))
             }
-            if (sub.isNotEmpty() || was != null) Row {
+            if (sub.isNotEmpty() || was != null || hw) Row {
                 if (was != null) Text("$was · ", color = T.tx2.copy(alpha = a * .7f), fontSize = 12.5.sp, textDecoration = TextDecoration.LineThrough, maxLines = 1)
-                Text(sub, color = T.tx2.copy(alpha = a), fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(sub + if (hw) (if (sub.isNotEmpty()) " · 📝" else "📝") else "", color = T.tx2.copy(alpha = a), fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         Column(horizontalAlignment = Alignment.End) {
@@ -482,12 +512,12 @@ fun Modifier.graphicsAlpha(a: Float): Modifier = this.alpha(a)
 /* ===== Поле ввода ===== */
 
 @Composable
-fun Field(value: String, onChange: (String) -> Unit, placeholder: String = "", number: Boolean = false, modifier: Modifier = Modifier) {
+fun Field(value: String, onChange: (String) -> Unit, placeholder: String = "", number: Boolean = false, modifier: Modifier = Modifier, lines: Int = 1) {
     var focused by remember { mutableStateOf(false) }
     val t = T
     BasicTextField(
-        value = value, onValueChange = onChange, singleLine = true,
-        textStyle = TextStyle(color = t.tx, fontSize = 15.sp),
+        value = value, onValueChange = onChange, singleLine = lines == 1, minLines = lines, maxLines = if (lines == 1) 1 else 12,
+        textStyle = LocalTextStyle.current.merge(TextStyle(color = t.tx, fontSize = 15.sp)),
         cursorBrush = SolidColor(t.acc),
         keyboardOptions = if (number) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
         modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused },

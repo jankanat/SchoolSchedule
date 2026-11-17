@@ -48,7 +48,13 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         Store.ensure(this)
+        tabReq.value = intent?.getIntExtra("tab", -1)?.takeIf { it >= 0 }
         setContent { Root() }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        tabReq.value = intent.getIntExtra("tab", -1).takeIf { it >= 0 }
     }
 
     override fun onResume() {
@@ -57,6 +63,9 @@ class MainActivity : ComponentActivity() {
         WidgetUpdater.refresh(this)
     }
 }
+
+/** Открыть вкладку по запросу извне (уведомление о домашке → «Задания»). */
+val tabReq = androidx.compose.runtime.mutableStateOf<Int?>(null)
 
 /** Фон экрана — градиент 165° из прототипа. */
 @Composable
@@ -74,6 +83,8 @@ private fun Root() {
     val ui = remember { UiCtl() }
     val pager = rememberPagerState { 5 }
     val backdrop = rememberGraphicsLayer()
+    val req = tabReq.value
+    LaunchedEffect(req) { if (req != null) { ui.back(); ui.close(); pager.scrollToPage(req); tabReq.value = null } }
     // «сейчас» пересчитывается раз в 20 секунд — главный экран сам переключается по звонкам
     var clock by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { delay(20_000); clock = System.currentTimeMillis() } }
@@ -81,7 +92,7 @@ private fun Root() {
 
     BackHandler(enabled = ui.sheet != null || ui.page != null) { if (ui.sheet != null) ui.close() else ui.back() }
 
-    val tok = remember(st.style, st.theme, st.ct) { tokFor(st.style).let { if (st.theme == "custom") it.withCustom(st.ct) else it } }
+    val tok = remember(st.style, st.theme, st.ct, st.rs) { tokFor(st.style).let { if (st.theme == "custom") it.withCustom(st.ct) else it }.withRadius(st.rs) }
     val view = LocalView.current
     SideEffect {
         val win = (view.context as? android.app.Activity)?.window ?: return@SideEffect
@@ -90,7 +101,7 @@ private fun Root() {
             isAppearanceLightNavigationBars = !tok.isDark
         }
     }
-    AppTheme(tok) {
+    AppTheme(tok, st.font) {
     CompositionLocalProvider(LocalUi provides ui, LocalIcons provides IconPrefs(st.iconSet, st.iconTint)) {
         Box(Modifier.fillMaxSize()) {
             // содержимое записывается в слой — по нему меню делает размытие и преломление

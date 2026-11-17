@@ -16,6 +16,8 @@ import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.Image
 import kz.alnazar.schedule.ui.IconRes
+import kz.alnazar.schedule.data.Files
+import androidx.glance.layout.ContentScale
 import kz.alnazar.schedule.ui.withCustom
 import androidx.glance.GlanceModifier
 import androidx.glance.ImageProvider
@@ -59,6 +61,7 @@ internal data class WPal(
     val upper: Boolean, val tileR: Float, val tx: Color, val tx2: Color, val tx3: Color, val acc: Color, val soft: Color,
     val colBg: Color, val line: Color, val tileBw: Color, val bg: Int, val radius: Dp,
     val fill: Color? = null,   // своя тема: сплошная заливка вместо картинки-фона
+    val ff: androidx.glance.text.FontFamily? = null,   // ближайший системный шрифт к выбранному в приложении
 )
 
 /** Своя тема для виджета: форма от стиля, цвета — из настроек пользователя. */
@@ -94,8 +97,9 @@ private val TX3: ColorProvider @Composable get() = ColorProvider(LocalWP.current
 private val ACC: ColorProvider @Composable get() = ColorProvider(LocalWP.current.acc)
 
 @Composable
+@Composable
 private fun st(size: TextUnit, color: ColorProvider = TX, bold: Boolean = false) =
-    TextStyle(color = color, fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal)
+    TextStyle(color = color, fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal, fontFamily = LocalWP.current.ff)
 
 /** Общая основа всех виджетов: стекло, клик открывает приложение, пересчёт «сейчас» при каждом тике. */
 abstract class LessonWidget : GlanceAppWidget() {
@@ -112,7 +116,12 @@ abstract class LessonWidget : GlanceAppWidget() {
             val s by Store.state.collectAsState()
             val tick by Store.tick.collectAsState()
             val n = remember(s, tick) { Sched.now(s) }
-            val pal = palFor(s.style).let { if (s.theme == "custom") customPal(it, s) else it }
+            val pal = palFor(s.style).let { if (s.theme == "custom") customPal(it, s) else it }.copy(
+                ff = when (s.font) {
+                    "serif" -> androidx.glance.text.FontFamily.Serif; "mono" -> androidx.glance.text.FontFamily.Monospace
+                    "hand" -> androidx.glance.text.FontFamily.Cursive; else -> null
+                },
+            )
             CompositionLocalProvider(LocalWP provides pal) {
                 Box(
                     GlanceModifier.fillMaxSize()
@@ -135,6 +144,17 @@ private val COLBG: Color @Composable get() = LocalWP.current.colBg
 
 @Composable
 private fun TileE(s: AppState, emoji: String, color: Long, size: Dp) {
+    // своя картинка или скачанный эмодзи — битмапом
+    val bmp = if (emoji.startsWith("img:")) Files.iconBitmap(emoji.removePrefix("img:"))
+        else if (IconRes.key(emoji) == null) Files.emojiFile(s.iconSet, emoji)?.let { Files.bitmap(it) } else null
+    if (bmp != null) {
+        val full = emoji.startsWith("img:")
+        Box(GlanceModifier.size(size).background(Color(color).copy(alpha = .24f)).cornerRadius(size * LocalWP.current.tileR), contentAlignment = Alignment.Center) {
+            Image(ImageProvider(bmp), contentDescription = null, contentScale = if (full) ContentScale.Crop else ContentScale.Fit,
+                modifier = if (full) GlanceModifier.size(size).cornerRadius(size * LocalWP.current.tileR) else GlanceModifier.size(size * if (s.iconSet == "fluent") .7f else .6f))
+        }
+        return
+    }
     val key = IconRes.key(emoji)
     val mono = s.iconSet == "mono" && key != null
     val bg = when {
@@ -166,7 +186,7 @@ private fun TileS(s: AppState, slot: Slot, lang: String, size: Dp) {
     val v = Sched.subj(s, slot.lesson.subj, lang); TileE(s, v.emoji, v.color, size)
 }
 
-private fun name(s: AppState, slot: Slot, lang: String) = Sched.subj(s, slot.lesson.subj, lang).name
+private fun name(s: AppState, slot: Slot, lang: String) = Sched.subj(s, slot.lesson.subj, lang).name + Sched.hwMark(s, slot)
 
 /** Подпись-метка: слева акцентом капсом, справа серым. */
 @Composable
