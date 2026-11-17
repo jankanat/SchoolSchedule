@@ -143,7 +143,7 @@ fun SettingsScreen(st: AppState) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Sec(Tr.t(lang, "set_look"))
                 Group {
-                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (if (st.style == "pixel") "Pixel OS" else "iOS 26") + " · " + Tr.t(lang, "th_dark")) { ui.go("appearance") }
+                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (mapOf("ios26" to "iOS 26", "pixel" to "Pixel OS", "ios18" to "iOS 18", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9")[st.style] ?: "iOS 26") + " · " + Tr.t(lang, "th_dark")) { ui.go("appearance") }
                     RowDivider()
                     SetRow("🌐", 0xFF0A84FF, Tr.t(lang, "language"), "${st.appLang.uppercase()} · ${Tr.t(lang, "tab_widgets")}: ${st.widgetLang.uppercase()}") { ui.go("language") }
                 }
@@ -256,7 +256,6 @@ fun SubPage(id: String, st: AppState) {
                         StylePicker(st)
                         Sec(Tr.t(lang, "theme"))
                         Chips(listOf("dark" to Tr.t(lang, "th_dark")), "dark") {}
-                        Card(Modifier.padding(top = 14.dp)) { Text(Tr.t(lang, "styles_soon"), color = T.tx2, fontSize = 13.5.sp) }
                         IconSetPicker(st)
                     }
                 }
@@ -353,12 +352,12 @@ fun IconSetPicker(st: AppState) {
 fun StylePicker(st: AppState) {
     val ctx = LocalContext.current
     val styles = listOf("ios26" to ("iOS 26" to "Liquid Glass"), "pixel" to ("Pixel OS" to "Material 3 Expressive"),
-        "ios18" to ("iOS 18" to ""), "color" to ("ColorOS 17" to ""), "origin" to ("OriginOS 7" to ""), "oneui" to ("One UI 9" to ""))
+        "ios18" to ("iOS 18" to "Classic"), "color" to ("ColorOS 17" to "Luminous · стекло"), "origin" to ("OriginOS 7" to "Origin Design"), "oneui" to ("One UI 9" to "Samsung"))
     val n = Sched.now(st)
     styles.chunked(2).forEach { pair ->
         Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             pair.forEach { (id, names) ->
-                val ready = id == "ios26" || id == "pixel"
+                val ready = true
                 val on = st.style == id
                 val shape = RoundedCornerShape(T.rc * .8f)
                 Column(

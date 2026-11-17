@@ -40,6 +40,7 @@ fun SlotRow(st: AppState, list: List<Slot>, i: Int, state: LsState, lang: String
         sub = Sched.roomLabel(list, i, lang), start = Tr.hm(s.start), end = Tr.hm(s.end), state = state,
         tag = if (s.replaced) Tr.t(lang, "replaced") else null,
         was = orig?.takeIf { it != v.name }, onClick = onClick,
+        first = i == 0, last = i == list.lastIndex,
     )
 }
 

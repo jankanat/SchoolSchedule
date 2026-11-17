@@ -55,13 +55,22 @@ import kz.alnazar.schedule.ui.MainActivity
 /* ===== Цвета стиля iOS 26 (тёмная тема). Остальные стили и темы — на следующем этапе. ===== */
 /** Палитра виджета для текущего стиля приложения. */
 internal data class WPal(
-    val pixel: Boolean, val tx: Color, val tx2: Color, val tx3: Color, val acc: Color, val soft: Color,
+    val upper: Boolean, val tileR: Float, val tx: Color, val tx2: Color, val tx3: Color, val acc: Color, val soft: Color,
     val colBg: Color, val line: Color, val tileBw: Color, val bg: Int, val radius: Dp,
 )
-private val IOS = WPal(false, Color(0xFFFFFFFF), Color(0x99FFFFFF), Color(0x59FFFFFF), Color(0xFF0A84FF), Color(0x2B0A84FF),
+private fun pal(upper: Boolean, tileR: Float, acc: Color, soft: Color, bg: Int, r: Int, tx: Color = Color.White, tx2: Color = Color(0xFF9B9BA3)) =
+    WPal(upper, tileR, tx, tx2, tx2.copy(alpha = .55f), acc, soft, Color(0x12FFFFFF), Color(0x1FFFFFFF), Color(0xFF2C2C2E), bg, r.dp)
+private val IOS = WPal(true, .3f, Color(0xFFFFFFFF), Color(0x99FFFFFF), Color(0x59FFFFFF), Color(0xFF0A84FF), Color(0x2B0A84FF),
     Color(0x12FFFFFF), Color(0x1FFFFFFF), Color(0x42828296), R.drawable.glass_dark, 34.dp)
-private val PIXEL = WPal(true, Color(0xFFE6E0E9), Color(0xFFCAC4D0), Color(0x80CAC4D0), Color(0xFFD0BCFF), Color(0xFF4A4458),
+private val PIXEL = WPal(false, .5f, Color(0xFFE6E0E9), Color(0xFFCAC4D0), Color(0x80CAC4D0), Color(0xFFD0BCFF), Color(0xFF4A4458),
     Color(0xFF36343B), Color(0x29CAC4D0), Color(0xFF36343B), R.drawable.pixel_dark, 28.dp)
+private val IOS18 = pal(true, .24f, Color(0xFF0A84FF), Color(0x2B0A84FF), R.drawable.ios18_dark, 24)
+private val COLOR = pal(false, .5f, Color(0xFF35D07F), Color(0x2B35D07F), R.drawable.color_dark, 22)
+private val ORIGIN = pal(false, .34f, Color(0xFF7C93FF), Color(0x2B7C93FF), R.drawable.origin_dark, 28)
+private val ONEUI = pal(false, .36f, Color(0xFF4DA3FF), Color(0x2B4DA3FF), R.drawable.oneui_dark, 30)
+private fun palFor(style: String) = when (style) {
+    "pixel" -> PIXEL; "ios18" -> IOS18; "color" -> COLOR; "origin" -> ORIGIN; "oneui" -> ONEUI; else -> IOS
+}
 internal val LocalWP = staticCompositionLocalOf { IOS }
 
 private val TX: ColorProvider @Composable get() = ColorProvider(LocalWP.current.tx)
@@ -88,7 +97,7 @@ abstract class LessonWidget : GlanceAppWidget() {
             val s by Store.state.collectAsState()
             val tick by Store.tick.collectAsState()
             val n = remember(s, tick) { Sched.now(s) }
-            val pal = if (s.style == "pixel") PIXEL else IOS
+            val pal = palFor(s.style)
             CompositionLocalProvider(LocalWP provides pal) {
                 Box(
                     GlanceModifier.fillMaxSize()
@@ -125,7 +134,7 @@ private fun TileE(s: AppState, emoji: String, color: Long, size: Dp) {
         s.iconSet == "mono" -> IconRes.mono[key]
         else -> null
     }
-    Box(GlanceModifier.size(size).background(bg).cornerRadius(size * if (LocalWP.current.pixel) .5f else .3f), contentAlignment = Alignment.Center) {
+    Box(GlanceModifier.size(size).background(bg).cornerRadius(size * LocalWP.current.tileR), contentAlignment = Alignment.Center) {
         when {
             res != null && mono -> Image(
                 ImageProvider(res), contentDescription = null, modifier = GlanceModifier.size(size * .6f),
@@ -148,7 +157,7 @@ private fun name(s: AppState, slot: Slot, lang: String) = Sched.subj(s, slot.les
 @Composable
 private fun Lb(a: String, b: String = "", size: TextUnit = 10.sp, center: Boolean = false) {
     Row(GlanceModifier.fillMaxWidth(), horizontalAlignment = if (center) Alignment.CenterHorizontally else Alignment.Start, verticalAlignment = Alignment.Bottom) {
-        Text(if (LocalWP.current.pixel) a else a.uppercase(), style = st(size, ACC, bold = true), maxLines = 2, modifier = if (b.isNotEmpty()) GlanceModifier.defaultWeight() else GlanceModifier)
+        Text(if (LocalWP.current.upper) a.uppercase() else a, style = st(size, ACC, bold = true), maxLines = 2, modifier = if (b.isNotEmpty()) GlanceModifier.defaultWeight() else GlanceModifier)
         if (b.isNotEmpty()) Text(b, style = st(size, TX2), maxLines = 1)
     }
 }

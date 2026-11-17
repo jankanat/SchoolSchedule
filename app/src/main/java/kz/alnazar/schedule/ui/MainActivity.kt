@@ -108,8 +108,7 @@ private fun Root() {
                     NavTab(Tr.t(lang, "tab_hw"), Ic.hw),
                     NavTab(Tr.t(lang, "tab_settings"), Ic.set),
                 )
-                if (st.style == "pixel") PixelNav(tabs, pager, Modifier.align(Alignment.BottomCenter))
-                else GlassNav(tabs, pager, backdrop, Modifier.align(Alignment.BottomCenter))
+                StyleNav(tabs, pager, backdrop, Modifier.align(Alignment.BottomCenter))
             }
 
             AnimatedVisibility(

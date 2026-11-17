@@ -45,6 +45,13 @@ data class Tok(
     val secCont: Color = s2,        // M3 secondaryContainer
     val onSecCont: Color = tx,
     val outline: Color = line,
+    val secUpper: Boolean = true,   // заголовки разделов капсом (iOS)
+    val titleCenter: Boolean = false,
+    val titleTrack: Float = -0.6f,
+    val segKind: String = "slide",  // slide | soft | connected
+    val swW: Dp = 51.dp, val swH: Dp = 31.dp, val swPad: Dp = 2.dp,
+    val glow: Boolean = false,      // белое внутреннее свечение (ColorOS)
+    val nav: String = "glass",      // glass | ios18 | m3 | island | origin | oneui
 ) {
     val pixel: Boolean get() = id == "pixel"
     val accSoft: Color get() = acc.copy(alpha = .17f)
@@ -99,9 +106,67 @@ val PixelDark = Tok(
     secCont = Color(0xFF4A4458),
     onSecCont = Color(0xFFE8DEF8),
     outline = Color(0xFF938F99),
+    secUpper = false, titleTrack = 0f, segKind = "connected", nav = "m3",
 )
 
-fun tokFor(style: String): Tok = if (style == "pixel") PixelDark else Ios26Dark
+/** iOS 18 — классический тёмный iOS: сплошные поверхности, сегменты #636366, зелёные переключатели. */
+val Ios18Dark = Tok(
+    bg = listOf(Color.Black, Color.Black, Color.Black),
+    s1 = Color(0xFF1C1C1E), s2 = Color(0xFF2C2C2E), sheet = Color(0xFF1C1C1E),
+    tx = Color.White, tx2 = Color(0xFF9B9BA3), line = Color(0x1FFFFFFF),
+    acc = Color(0xFF0A84FF), accTx = Color.White,
+    cardBorderTop = Color.Transparent, cardBorderBottom = Color.Transparent,
+    navBg = Color(0xD91C1C1E), navBorder = Color(0x26FFFFFF),
+    segOn = Color(0xFF636366), swOn = Color(0xFF34C759),
+    rc = 14.dp, rsg = 9.dp, iconRadius = .24f, titleSize = 34f, id = "ios18", glassy = false, nav = "ios18",
+)
+
+/** ColorOS 17 — матовое «жидкое акриловое» стекло, белое контурное свечение, плавающий остров. */
+val ColorDark = Tok(
+    bg = listOf(Color(0xFF0E0E0E), Color(0xFF101312), Color(0xFF0E0E0E)),
+    s1 = Color(0xB82A2A2A), s2 = Color(0x993A3A3A), sheet = Color(0xFF1E1E1E),
+    tx = Color.White, tx2 = Color(0xFF9B9BA3), line = Color(0x1FFFFFFF),
+    acc = Color(0xFF35D07F), accTx = Color(0xFF04210F),
+    cardBorderTop = Color(0x52FFFFFF), cardBorderBottom = Color(0x0FFFFFFF),
+    navBg = Color(0x9E262626), navBorder = Color(0x40FFFFFF),
+    segOn = Color(0x38FFFFFF), swOn = Color(0xFF35D07F),
+    rc = 20.dp, rsg = 14.dp, iconRadius = .5f, titleSize = 22f, id = "color", glassy = true,
+    titleWeight = FontWeight.SemiBold, hdrMin = 50.dp, secUpper = false, titleCenter = true, titleTrack = 0f,
+    swW = 46.dp, swH = 26.dp, swPad = 3.dp, glow = true, nav = "island",
+)
+
+/** OriginOS 7 — глубина и мягкое стекло vivo, синевато-фиолетовый акцент. */
+val OriginDark = Tok(
+    bg = listOf(Color(0xFF0B0C10), Color(0xFF0E1018), Color(0xFF10131F)),
+    s1 = Color(0xD91B1E28), s2 = Color(0xFF222531), sheet = Color(0xFF171921),
+    tx = Color.White, tx2 = Color(0xFF9B9BA3), line = Color(0x1AFFFFFF),
+    acc = Color(0xFF7C93FF), accTx = Color(0xFF0B1030),
+    cardBorderTop = Color(0x1FFFFFFF), cardBorderBottom = Color(0x08FFFFFF),
+    navBg = Color(0xC7171921), navBorder = Color(0x1FFFFFFF),
+    segOn = Color(0xFF2F3345), swOn = Color(0xFF7C93FF),
+    rc = 24.dp, rsg = 16.dp, iconRadius = .34f, titleSize = 30f, id = "origin", glassy = true,
+    titleWeight = FontWeight.SemiBold, hdrMin = 66.dp, secUpper = false, titleTrack = -0.3f,
+    swW = 50.dp, swH = 30.dp, swPad = 3.dp, nav = "origin",
+)
+
+/** One UI 9 — высокий заголовок, мягкие тональные сегменты, плавающая капсула с тонкой белой кромкой. */
+val OneUiDark = Tok(
+    bg = listOf(Color.Black, Color.Black, Color.Black),
+    s1 = Color(0xFF1E1E20), s2 = Color(0xFF2B2B2E), sheet = Color(0xFF1E1E20),
+    tx = Color.White, tx2 = Color(0xFF9B9BA3), line = Color(0x1FFFFFFF),
+    acc = Color(0xFF4DA3FF), accTx = Color(0xFF001A33),
+    cardBorderTop = Color.Transparent, cardBorderBottom = Color.Transparent,
+    navBg = Color(0xB31E1E20), navBorder = Color(0x38FFFFFF),
+    segOn = Color(0xFF4DA3FF), swOn = Color(0xFF4DA3FF),
+    rc = 28.dp, rsg = 999.dp, iconRadius = .36f, titleSize = 34f, id = "oneui", glassy = false,
+    titleWeight = FontWeight.SemiBold, hdrMin = 132.dp, secUpper = false, titleTrack = -0.4f, segKind = "soft",
+    swW = 48.dp, swH = 26.dp, swPad = 3.dp, nav = "oneui",
+)
+
+fun tokFor(style: String): Tok = when (style) {
+    "pixel" -> PixelDark; "ios18" -> Ios18Dark; "color" -> ColorDark; "origin" -> OriginDark; "oneui" -> OneUiDark
+    else -> Ios26Dark
+}
 
 val LocalTok = staticCompositionLocalOf { Ios26Dark }
 

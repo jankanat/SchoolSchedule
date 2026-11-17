@@ -46,9 +46,20 @@ private val WBD = Color(0x29FFFFFF)     // rgba(255,255,255,.16)
 
 @Composable
 fun WidgetFrame(w: Int, h: Int, pad: androidx.compose.foundation.layout.PaddingValues, content: @Composable ColumnScope.() -> Unit) {
-    if (T.pixel) {
-        // Pixel OS: плотная тональная подложка Material You, без стекла
-        Column(Modifier.size(w.dp, h.dp).clip(RoundedCornerShape(28.dp)).background(T.s2).padding(pad), content = content)
+    // подложка виджета под стиль (значения --wbg / --wbd / --rw из прототипа)
+    val (bgc, bd, r) = when (T.id) {
+        "pixel" -> Triple(T.s2, Color.Transparent, 28)
+        "ios18" -> Triple(Color(0xFF1C1C1E), Color.Transparent, 24)
+        "color" -> Triple(Color(0xE6242424), Color(0x47FFFFFF), 22)
+        "origin" -> Triple(Color(0xB8222531), Color(0x14FFFFFF), 28)
+        "oneui" -> Triple(Color(0xFF262629), Color.Transparent, 30)
+        else -> Triple(Color.Unspecified, Color.Unspecified, 34)
+    }
+    if (T.id != "ios26") {
+        val sh = RoundedCornerShape(r.dp)
+        var m = Modifier.size(w.dp, h.dp).clip(sh).background(bgc)
+        if (bd != Color.Transparent) m = m.border(if (T.glow) 1.2.dp else 1.dp, Brush.verticalGradient(listOf(bd, bd.copy(alpha = bd.alpha * .25f))), sh)
+        Column(m.padding(pad), content = content)
         return
     }
     val shape = RoundedCornerShape(34.dp)
@@ -66,7 +77,7 @@ fun WidgetFrame(w: Int, h: Int, pad: androidx.compose.foundation.layout.PaddingV
 @Composable
 private fun Lb(a: String, b: String = "", size: TextUnit = 10.sp, center: Boolean = false) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (center) Arrangement.Center else Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-        Text(if (T.pixel) a else a.uppercase(), color = T.acc, fontSize = if (T.pixel) size * 1.1f else size, fontWeight = FontWeight.Bold, letterSpacing = if (T.pixel) 0.sp else .5.sp, maxLines = 2,
+        Text(if (T.secUpper) a.uppercase() else a, color = T.acc, fontSize = if (T.secUpper) size else size * 1.1f, fontWeight = FontWeight.Bold, letterSpacing = if (T.secUpper) .5.sp else 0.sp, maxLines = 2,
             textAlign = if (center) TextAlign.Center else TextAlign.Start, lineHeight = (size.value * 1.2f).sp)
         if (b.isNotEmpty()) Text(b, color = T.tx2, fontSize = size, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 6.dp))
     }

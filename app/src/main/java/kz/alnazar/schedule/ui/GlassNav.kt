@@ -321,7 +321,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
             ) {
                 Box(
                     Modifier.fillMaxSize().clip(pill).drawBehind {
-                        bgLayer.renderEffect = BlurEffect(10.dp.toPx(), 10.dp.toPx(), TileMode.Clamp)
+                        bgLayer.renderEffect = BlurEffect(4.dp.toPx(), 4.dp.toPx(), TileMode.Clamp)
                         bgLayer.record { translate(-navPos.x, -navPos.y) { drawLayer(backdrop) } }
                         drawLayer(bgLayer)
                         drawRect(t.navBg)

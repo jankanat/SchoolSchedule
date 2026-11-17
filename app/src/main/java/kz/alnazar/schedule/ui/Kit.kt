@@ -1,6 +1,10 @@
 package kz.alnazar.schedule.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -79,15 +83,24 @@ import androidx.compose.ui.unit.sp
 fun Modifier.glass(shape: Shape, color: Color = T.s1): Modifier {
     val t = T
     if (!t.glassy) return this.clip(shape).background(color, shape)
-    return this.clip(shape).background(color, shape)
-        .border(1.dp, Brush.verticalGradient(listOf(t.cardBorderTop, t.cardBorderBottom)), shape)
+    val base = this.clip(shape).background(color, shape)
+        .border(if (t.glow) 1.2.dp else 1.dp, Brush.verticalGradient(listOf(t.cardBorderTop, t.cardBorderBottom)), shape)
+    if (!t.glow) return base
+    // ColorOS: мягкое белое свечение по внутреннему контуру
+    return base.drawWithContent {
+        drawContent()
+        val o = shape.createOutline(size, layoutDirection, this)
+        drawOutline(o, Brush.verticalGradient(listOf(Color(0x24FFFFFF), Color(0x05FFFFFF))), style = Stroke(5.dp.toPx()))
+    }
 }
 
 private val noRipple = MutableInteractionSource()
 
+/** Нажатие: в Pixel OS — ripple Material, в остальных стилях без серой подсветки (как в iOS/ColorOS). */
 @Composable
 fun Modifier.tap(enabled: Boolean = true, onClick: () -> Unit): Modifier =
-    this.clickable(enabled = enabled, onClick = onClick)
+    if (T.pixel) this.clickable(enabled = enabled, onClick = onClick)
+    else this.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, enabled = enabled, onClick = onClick)
 
 /* ===== Заголовки ===== */
 
@@ -99,8 +112,10 @@ fun Hdr(title: String, sub: String? = null, right: (@Composable RowScope.() -> U
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = T.tx, fontSize = T.titleSize.sp, fontWeight = T.titleWeight, letterSpacing = if (T.pixel) 0.sp else (-0.6).sp, lineHeight = (T.titleSize * 1.15f).sp)
-            if (sub != null) Text(sub, color = T.tx2, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(top = 4.dp))
+            val al = if (T.titleCenter) TextAlign.Center else TextAlign.Start
+            Text(title, color = T.tx, fontSize = T.titleSize.sp, fontWeight = T.titleWeight, letterSpacing = T.titleTrack.sp, lineHeight = (T.titleSize * 1.15f).sp,
+                textAlign = al, modifier = Modifier.fillMaxWidth())
+            if (sub != null) Text(sub, color = T.tx2, fontSize = 13.sp, fontWeight = FontWeight.Medium, textAlign = al, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
         }
         if (right != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp), content = right)
     }
@@ -116,7 +131,7 @@ fun HdrBack(title: String, onBack: () -> Unit) {
         Box(Modifier.size(38.dp).clip(CircleShape).background(T.s1).tap(onClick = onBack), contentAlignment = Alignment.Center) {
             Text("‹", color = T.tx, fontSize = 26.sp, fontWeight = FontWeight.Medium, modifier = Modifier.offset(y = (-2).dp))
         }
-        Text(title, color = T.tx, fontSize = if (T.pixel) 26.sp else T.titleSize.sp, fontWeight = T.titleWeight, letterSpacing = if (T.pixel) 0.sp else (-0.6).sp,
+        Text(title, color = T.tx, fontSize = if (T.pixel || T.id == "oneui") 26.sp else T.titleSize.sp, fontWeight = T.titleWeight, letterSpacing = T.titleTrack.sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
     }
 }
@@ -125,6 +140,8 @@ fun HdrBack(title: String, onBack: () -> Unit) {
 fun Sec(text: String) {
     if (T.pixel) Text(text, color = T.acc, fontSize = 14.sp, fontWeight = FontWeight.Medium,
         modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 22.dp, bottom = 8.dp))
+    else if (!T.secUpper) Text(text, color = T.tx2, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 10.dp, end = 8.dp, top = 20.dp, bottom = 8.dp))
     else Text(text.uppercase(), color = T.tx2, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, letterSpacing = .2.sp,
         modifier = Modifier.padding(start = 8.dp, end = 8.dp, top = 20.dp, bottom = 8.dp))
 }
@@ -198,10 +215,12 @@ fun TgRow(title: String, on: Boolean, sub: String? = null, onChange: (Boolean) -
 @Composable
 fun IosSwitch(on: Boolean) {
     if (T.pixel) { M3Switch(on); return }
-    val bg by animateColorAsState(if (on) T.swOn else T.s2, tween(200), label = "sw")
-    val x by animateDpAsState(if (on) 22.dp else 2.dp, tween(200), label = "swx")
-    Box(Modifier.size(51.dp, 31.dp).clip(RoundedCornerShape(99.dp)).background(bg)) {
-        Box(Modifier.offset(x = x, y = 2.dp).size(27.dp).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
+    val t = T
+    val bg by animateColorAsState(if (on) t.swOn else t.s2, tween(200), label = "sw")
+    val knob = t.swH - t.swPad * 2
+    val x by animateDpAsState(if (on) t.swW - t.swPad - knob else t.swPad, spring(dampingRatio = .75f, stiffness = 600f), label = "swx")
+    Box(Modifier.size(t.swW, t.swH).clip(RoundedCornerShape(99.dp)).background(bg)) {
+        Box(Modifier.offset(x = x, y = t.swPad).size(knob).shadow(2.dp, CircleShape).background(Color.White, CircleShape))
     }
 }
 
@@ -254,18 +273,18 @@ private val SLIDE = spring<Dp>(dampingRatio = .82f, stiffness = 520f)
 
 @Composable
 fun <K> Seg(options: List<Pair<K, String>>, selected: K, onSelect: (K) -> Unit) {
-    if (T.pixel) { ConnectedGroup(options, selected, onSelect = onSelect); return }
+    if (T.segKind == "connected") { ConnectedGroup(options, selected, onSelect = onSelect); return }
     val idx = options.indexOfFirst { it.first == selected }.coerceAtLeast(0)
     BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(T.rsg)).background(T.s2).padding(3.dp)) {
         val gap = 2.dp
         val w = (maxWidth - gap * (options.size - 1)) / options.size
         val x by animateDpAsState((w + gap) * idx, SLIDE, label = "seg")
         Box(Modifier.matchParentSize()) {
-            Box(Modifier.offset(x = x).width(w).fillMaxHeight().shadow(1.dp, RoundedCornerShape(T.rsg - 3.dp)).clip(RoundedCornerShape(T.rsg - 3.dp)).background(T.segOn))
+            Box(Modifier.offset(x = x).width(w).fillMaxHeight().clip(RoundedCornerShape(T.rsg - 3.dp)).background(if (T.segKind == "soft") T.accSoft else T.segOn))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
             options.forEachIndexed { i, (k, label) ->
-                val c by animateColorAsState(if (i == idx) T.tx else T.tx2, tween(200), label = "segc")
+                val c by animateColorAsState(if (i == idx) (if (T.segKind == "soft") T.acc else T.tx) else T.tx2, tween(200), label = "segc")
                 Box(
                     Modifier.width(w).clip(RoundedCornerShape(T.rsg - 3.dp)).tap { onSelect(k) }.padding(vertical = 8.dp, horizontal = 6.dp),
                     contentAlignment = Alignment.Center,
@@ -424,9 +443,12 @@ fun LessonRow(
     num: Int, emoji: String, color: Long, name: String, sub: String,
     start: String, end: String, state: LsState = LsState.Normal,
     tag: String? = null, was: String? = null, onClick: (() -> Unit)? = null,
+    first: Boolean = true, last: Boolean = true,
 ) {
-    val shape = RoundedCornerShape(T.rc * .75f)
-    var m = Modifier.padding(bottom = 8.dp).fillMaxWidth()
+    val big = T.rc * .75f
+    val shape = if (T.pixel) RoundedCornerShape(topStart = if (first) big else 6.dp, topEnd = if (first) big else 6.dp,
+        bottomStart = if (last) big else 6.dp, bottomEnd = if (last) big else 6.dp) else RoundedCornerShape(big)
+    var m = Modifier.padding(bottom = if (T.pixel && !last) 2.dp else 8.dp).fillMaxWidth()
     m = when {
         state == LsState.Cur && T.pixel -> m.clip(shape).background(T.secCont, shape)
         state == LsState.Cur -> m.clip(shape).background(T.accSoft, shape).border(1.5.dp, T.acc, shape)
