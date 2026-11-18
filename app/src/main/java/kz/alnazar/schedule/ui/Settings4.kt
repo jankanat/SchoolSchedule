@@ -475,12 +475,17 @@ fun UiScaleAndTime(st: AppState) {
     Sec(Tr.t(lang, "ui_scale"))
     Card {
         Column(Modifier.padding(16.dp)) {
-            // 80–130 % с шагом 5; пока тянешь — интерфейс меняется вживую, сохраняем на отпускании
+            // 80–130 % с шагом 5. Применяем при отпускании: если менять масштаб во время
+            // перетаскивания, слайдер меняет размер под пальцем и значение начинает прыгать.
+            var v by androidx.compose.runtime.remember(st.uiScale) { androidx.compose.runtime.mutableFloatStateOf((st.uiScale - .8f) / .5f) }
             GradSlider(
-                "", (st.uiScale - .8f) / .5f, listOf(T.s2, T.acc), T.acc,
+                "", v, listOf(T.s2, T.acc), T.acc,
                 fmt = { "${(80 + it * 50).roundToInt() / 5 * 5}%" },
-                onChange = { v -> val k = ((80 + v * 50).roundToInt() / 5 * 5) / 100f; Store.preview { it.copy(uiScale = k.coerceIn(.8f, 1.3f)) } },
-                onEnd = { Store.update(ctx) { it } },
+                onChange = { v = it },
+                onEnd = {
+                    val k = (((80 + v * 50).roundToInt() / 5 * 5) / 100f).coerceIn(.8f, 1.3f)
+                    Store.update(ctx) { it.copy(uiScale = k) }
+                },
             )
         }
     }
