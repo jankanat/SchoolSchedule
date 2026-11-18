@@ -140,7 +140,8 @@ fun Modifier.press(
                     val ch = ev.changes.firstOrNull { it.id == down.id } ?: run { cancelled = true; null } ?: break
                     // changedToUp() возвращает false, если предок уже забрал событие (clickable шторки) — поэтому IgnoreConsumed
                     if (ch.changedToUpIgnoreConsumed()) { upPos = ch.position; if (!ch.isConsumed) ch.consume(); break }
-                    if (ch.isConsumed) { cancelled = true; break }           // родитель прокручивает
+                    // родитель прокручивает (само нажатие, которое мы же и забрали, не считается — у него previousPressed == false)
+                    if (ch.isConsumed && ch.previousPressed) { cancelled = true; break }
                     touch = ch.position
                     val d = ch.position - down.position
                     if (d.getDistance() > viewConfiguration.touchSlop) longJob?.cancel()
