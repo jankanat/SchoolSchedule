@@ -100,6 +100,8 @@ data class AppState(
     val notif: NotifCfg = NotifCfg(),
     val rs: Float = 1f,                 // скругление углов, 0..1.5 от стиля
     val font: String = "style",         // style | system | rounded | serif | mono | hand
+    val uiScale: Float = 1f,            // размер интерфейса 0.8..1.3
+    val timeSide: String = "auto",      // auto | left | right — где время в ленте уроков
 ) {
     val bells: List<Bell> get() = if (shift == 2) bells2 else bells1
     val schoolDays: Int get() = if (sixDays) 6 else 5

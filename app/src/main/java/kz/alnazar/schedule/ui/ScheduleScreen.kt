@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.togetherWith
 import kz.alnazar.schedule.data.AppState
 import kz.alnazar.schedule.data.Catalog
 import kz.alnazar.schedule.data.Lesson
@@ -57,57 +58,82 @@ private val MS = mapOf(
 @Composable
 fun ScheduleScreen(st: AppState) {
     val ui = LocalUi.current
+    val ctx = LocalContext.current
     val lang = st.appLang
+    val t = T
     val today = LocalDate.now()
-    val mon = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-    val wk = mon.toString()
     val nd = st.schoolDays
-    var sel by rememberSaveable { mutableStateOf((today.dayOfWeek.value - 1).coerceAtMost(nd - 1)) }
-    if (sel >= nd) sel = 0
+    // какой день показать: из главной (нажали день недели) или сегодня
+    var sel by rememberSaveable { mutableStateOf(today.toString()) }
     var view by rememberSaveable { mutableStateOf("days") }
-    val swaps = st.overrides.count { it.week == wk }
+    val req = SchedBus.day
+    androidx.compose.runtime.LaunchedEffect(req) { if (req != null) { sel = req.toString(); view = "days"; SchedBus.day = null } }
+    var date = LocalDate.parse(sel)
+    if (date.dayOfWeek.value - 1 >= nd) date = Sched.monday(date).plusDays((nd - 1).toLong())
+    val mon = Sched.monday(date)
+    val wk = mon.toString()
+    val changes = st.overrides.count { it.week == wk }
     val end = mon.plusDays((nd - 1).toLong())
     val ms = MS[lang] ?: MS.getValue("ru")
-    val range = "${mon.dayOfMonth} ${ms[mon.monthValue - 1]} – ${end.dayOfMonth} ${ms[end.monthValue - 1]}"
+    val range = "${mon.dayOfMonth} – ${end.dayOfMonth} ${ms[end.monthValue - 1]}".let { if (mon.monthValue != end.monthValue) "${mon.dayOfMonth} ${ms[mon.monthValue - 1]} – ${end.dayOfMonth} ${ms[end.monthValue - 1]}" else it }
+    val week = remember(st, wk) { Sched.week(st, mon) }
+    val all = remember(st, date) { Sched.dayAll(st, date) }
+    val n = remember(st) { Sched.now(st) }
+    val items = remember(st, date, n) { feedItems(st, date, lang, if (date == today) n else null, true) }
 
     fun edit(dayIdx: Int, i: Int) { ui.open { LessonSheet(dayIdx, i, wk) } }
+    fun shift(weeks: Long) { sel = date.plusWeeks(weeks).toString() }
+    val actions = listOf(Ic.chevL to { shift(-1) }, Ic.chevR to { shift(1) })
+    val dow = date.dayOfWeek.value - 1
 
     Page {
-        item { Hdr(Tr.t(lang, "tab_schedule"), Tr.t(lang, "week") + " " + range + if (swaps > 0) " · " + Tr.t(lang, "swaps", swaps) else "") }
         item {
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                Seg(listOf("days" to Tr.t(lang, "view_days"), "table" to Tr.t(lang, "view_table")), view) { view = it }
-                Spacer(Modifier.height(12.dp))
+            if (t.pixel) ScreenHead(Tr.t(lang, "week_n", mon.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)),
+                range + if (changes > 0) " · " + Tr.t(lang, "changes_n", changes) else "", actions, kicker = Tr.t(lang, "tab_schedule"))
+            else ScreenHead(Tr.t(lang, "tab_schedule"), range, actions)
+        }
+        if (!t.pixel) item {
+            Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp).appear(1)) {
+                HeadSeg(listOf("days" to Tr.t(lang, "day"), "table" to Tr.t(lang, "week")), view, wide = true) { view = it }
+            }
+        }
+        item {
+            Box(Modifier.padding(top = if (t.pixel) 18.dp else 12.dp).appear(2)) {
+                DayStrip(lang, week, date, today) { d -> sel = d.toString(); view = "days" }
             }
         }
         if (view == "days") {
             item {
-                Box(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp)) {
-                    EqualPills(
-                        (0 until nd).map { it to Tr.dayShort(lang, it) }, sel,
-                        dots = st.overrides.filter { it.week == wk }.map { it.day }.toSet(),
-                    ) { sel = it }
+                SecHead(Tr.dayLong(lang, dow) + if (t.pixel || t.id == "origin" || t.id == "oneui") " · " + Tr.plural(lang, "lessons", all.count { !it.cancelled }) else "") {
+                    if (t.pixel) HeadSeg(listOf("days" to Tr.t(lang, "day"), "table" to Tr.t(lang, "week")), view) { view = it }
+                    else if (changes > 0) Tag(Tr.t(lang, "changes_n", changes), Color(0xFFFF9F0A))
                 }
             }
-            val date = mon.plusDays(sel.toLong())
-            val L = Sched.dayLessons(st, date)
-            if (L.isEmpty()) item { Empty(Tr.t(lang, "emptyDay")) }
-            itemsIndexed(L) { i, s ->
-                Box(Modifier.padding(horizontal = 16.dp)) {
-                    SlotRow(st, L, i, LsState.Normal, lang, date = date, onLong = { ui.open { LessonMenu(date, s) } }) { edit(sel, s.idx) }
-                }
-            }
-            if (L.isNotEmpty()) item { Text(Tr.t(lang, "lm_hint"), color = T.tx2, fontSize = 12.5.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp)) }
             item {
-                Box(Modifier.padding(horizontal = 16.dp)) {
-                    Btn("+ " + Tr.t(lang, "addLesson"), Modifier.fillMaxWidth(), BtnKind.Sec) {
-                        val n = maxOf(st.week.getOrNull(sel)?.size ?: 0, (L.maxOfOrNull { it.idx } ?: -1) + 1)
-                        edit(sel, n)
-                    }
+                androidx.compose.animation.AnimatedContent(date, transitionSpec = {
+                    val dir = if (targetState > initialState) 1 else -1
+                    (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.spring(.85f, 380f)) { it / 5 * dir } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200))) togetherWith
+                        (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(160)) { -it / 6 * dir } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)))
+                }, label = "day") { d ->
+                    val its = if (d == date) items else feedItems(st, d, lang, null, true)
+                    val dAll = if (d == date) all else Sched.dayAll(st, d)
+                    if (its.isEmpty()) Empty(Tr.t(lang, "emptyDay"))
+                    else LessonFeed(
+                        its, lang, timeLeft(st.timeSide), Tr.t(lang, "replaced"), Tr.t(lang, "cancel_week"),
+                        onClick = { i -> dAll.getOrNull(i)?.let { edit(it.slot.dayIdx, it.slot.idx) } },
+                        onLong = { i -> dAll.getOrNull(i)?.let { x -> ui.open { LessonMenu(d, x.slot) } } },
+                        onRestore = { i -> dAll.getOrNull(i)?.let { x -> Store.update(ctx) { s -> s.copy(overrides = s.overrides.filterNot { o -> o.week == wk && o.day == x.slot.dayIdx && o.idx == x.slot.idx }) } } },
+                    )
+                }
+            }
+            item {
+                AddButton(Tr.t(lang, "addLesson")) {
+                    val nn = maxOf(st.week.getOrNull(dow)?.size ?: 0, (all.maxOfOrNull { it.slot.idx } ?: -1) + 1)
+                    edit(dow, nn)
                 }
             }
         } else {
-            item { Box(Modifier.padding(horizontal = 16.dp)) { WeekTable(st, mon, nd, lang) { d, i -> edit(d, i) } } }
+            item { Box(Modifier.padding(horizontal = 16.dp, vertical = 14.dp).appear(3)) { WeekTable(st, mon, nd, lang) { d, i -> edit(d, i) } } }
         }
     }
 }
@@ -225,7 +251,7 @@ fun ColumnScope.LessonSheet(dayIdx: Int, i: Int, wk: String, scope0: String? = n
             Store.update(ctx) { s -> s.copy(overrides = s.overrides.filterNot { it.week == wk && it.day == dayIdx && it.idx == i }) }
             ui.close()
         }
-        if (!isNew) Btn("🗑", kind = BtnKind.Danger) {
+        if (!isNew) Btn("", kind = BtnKind.Danger, icon = Ic.trash) {
             Store.update(ctx) { s ->
                 if (scope == "week") {
                     s.copy(overrides = s.overrides.filterNot { it.week == wk && it.day == dayIdx && it.idx == i } + Override(wk, dayIdx, i, null))

@@ -402,18 +402,26 @@ fun Chip(label: String, on: Boolean, onClick: () -> Unit) {
 enum class BtnKind { Primary, Sec, Ghost, Danger }
 
 @Composable
-fun Btn(text: String, modifier: Modifier = Modifier, kind: BtnKind = BtnKind.Primary, small: Boolean = false, enabled: Boolean = true, onClick: () -> Unit) {
+fun Btn(text: String, modifier: Modifier = Modifier, kind: BtnKind = BtnKind.Primary, small: Boolean = false, enabled: Boolean = true,
+        icon: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit) {
     val (bg, fg) = when (kind) {
         BtnKind.Primary -> T.acc to T.accTx
         BtnKind.Sec -> if (T.pixel) T.secCont to T.onSecCont else T.accSoft to T.acc
         BtnKind.Ghost -> T.s2 to T.tx
         BtnKind.Danger -> Color(0x2EFF453A) to Color(0xFFFF453A)
     }
-    Box(
-        modifier.clip(RoundedCornerShape(99.dp)).background(if (enabled) bg else T.s2).tap(enabled, onClick)
+    val shape = RoundedCornerShape(99.dp)
+    val bgc by animateColorAsState(if (enabled) bg else T.s2, tween(200), label = "btn")
+    Row(
+        modifier.clip(shape).background(bgc).press(shape, enabled = enabled, scaleTo = .95f, onClick = onClick)
             .padding(vertical = if (small) 8.dp else 12.dp, horizontal = if (small) 14.dp else 18.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(text, color = if (enabled) fg else T.tx2, fontSize = if (small) 13.5.sp else 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1) }
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center,
+    ) {
+        val c = if (enabled) fg else T.tx2
+        if (icon != null) Icon(icon, null, tint = c, modifier = Modifier.size(if (small) 18.dp else 20.dp))
+        if (icon != null && text.isNotEmpty()) Spacer(Modifier.width(8.dp))
+        if (text.isNotEmpty()) Text(text, color = c, fontSize = if (small) 13.5.sp else 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+    }
 }
 
 /* ===== Плитка предмета и строка урока ===== */
@@ -443,7 +451,18 @@ fun Tile(emoji: String, color: Long, size: Dp = 40.dp, onAccent: Boolean = false
         mono && p.tint == "bw" -> t.s2
         else -> Color(color).copy(alpha = .24f)
     }
-    Box(Modifier.size(size).clip(RoundedCornerShape(size * t.iconRadius)).background(bg), contentAlignment = Alignment.Center) {
+    // контейнер по стилю: Pixel — формы M3E, OriginOS — тёмный объёмный «скруглённый квадрат», остальные — круг/скругление
+    val shape: Shape = when {
+        t.pixel -> FormShape(formFor(emoji))
+        t.id == "origin" -> RoundedCornerShape(size * .3f)
+        else -> RoundedCornerShape(size * t.iconRadius)
+    }
+    val cont = if (t.id == "origin" && !onAccent) Modifier.shadow(6.dp, shape).clip(shape)
+        .background(Brush.verticalGradient(listOf(Color(0xFF34363F), Color(0xFF17181D))))
+        .border(1.dp, Brush.verticalGradient(listOf(Color(0x59FFFFFF), Color.Transparent)), shape)
+        else Modifier.clip(shape).background(if (t.pixel && !onAccent) Color(color).copy(alpha = .3f) else bg)
+    val k = when { t.pixel -> .44f; t.id == "origin" -> .6f; p.set == "fluent" -> .7f; else -> .6f }
+    Box(Modifier.size(size).then(cont), contentAlignment = Alignment.Center) {
         val res = when {
             key == null -> null
             p.set == "fluent" -> IconRes.fluent[key]
@@ -454,13 +473,13 @@ fun Tile(emoji: String, color: Long, size: Dp = 40.dp, onAccent: Boolean = false
         // эмодзи не из встроенного набора — скачанная версия Fluent 3D / Twemoji, если есть
         val dl = if (res == null) remember(emoji, p.set, Files.ver.intValue) { Files.emojiFile(p.set, emoji)?.let { Files.bitmap(it) }?.asImageBitmap() } else null
         when {
-            dl != null -> Image(dl, null, Modifier.size(size * if (p.set == "fluent") .7f else .6f))
+            dl != null -> Image(dl, null, Modifier.size(size * k))
             res != null && mono -> Icon(
-                painterResource(res), contentDescription = null, modifier = Modifier.size(size * .6f),
+                painterResource(res), contentDescription = null, modifier = Modifier.size(size * minOf(k, .6f)),
                 tint = when { onAccent -> Color.White; p.tint == "accent" -> t.acc; p.tint == "bw" -> t.tx; else -> Color(color) },
             )
-            res != null -> Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size * if (p.set == "fluent") .7f else .6f))
-            else -> Text(emoji, fontSize = (size.value * .55f).sp)
+            res != null -> Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size * k))
+            else -> Text(emoji, fontSize = (size.value * k * .8f).sp)
         }
     }
 }

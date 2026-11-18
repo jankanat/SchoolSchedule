@@ -22,6 +22,12 @@ data class Slot(
     val date: LocalDate? = null,
 )
 
+/** Урок дня для экрана «Расписание»: с отменёнными уроками и тем, что стояло до замены. */
+data class DaySlot(val slot: Slot, val cancelled: Boolean, val wasSubj: String?)
+
+/** Сводка по дню недели для полосы дней. */
+data class DayInfo(val date: LocalDate, val count: Int, val hw: Int, val changed: Boolean, val holiday: Boolean)
+
 /** Отображаемые данные предмета: название, эмодзи, цвет. */
 data class SubjView(val name: String, val emoji: String, val color: Long, val img: String? = null)
 
@@ -69,6 +75,47 @@ object Sched {
             out += Slot(i, lesson, b.start, b.end, o != null, dow, d)
         }
         return out
+    }
+
+    /** Все уроки дня, включая отменённые на эту неделю (для экрана «Расписание»). */
+    fun dayAll(st: AppState, d: LocalDate): List<DaySlot> {
+        val dow = d.dayOfWeek.value - 1
+        if (dow >= st.schoolDays) return emptyList()
+        val base = st.week.getOrNull(dow) ?: emptyList()
+        val wk = weekKey(d)
+        val ov = st.overrides.filter { it.week == wk && it.day == dow }
+        val n = maxOf(base.size, (ov.maxOfOrNull { it.idx } ?: -1) + 1)
+        val out = ArrayList<DaySlot>()
+        for (i in 0 until n) {
+            val o = ov.firstOrNull { it.idx == i }
+            val b = base.getOrNull(i)
+            val bell = st.bells.getOrNull(i) ?: continue
+            when {
+                o == null && b != null -> out += DaySlot(Slot(i, b, bell.start, bell.end, false, dow, d), false, null)
+                o != null && o.lesson != null -> out += DaySlot(Slot(i, o.lesson, bell.start, bell.end, true, dow, d), false, b?.subj?.takeIf { it != o.lesson.subj })
+                o != null && b != null -> out += DaySlot(Slot(i, b, bell.start, bell.end, true, dow, d), true, null)
+            }
+        }
+        return out
+    }
+
+    /** Понедельник недели, в которую входит дата. */
+    fun monday(d: LocalDate): LocalDate = d.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+
+    /** Учебные дни недели с числом уроков, заданий и отметкой изменений. */
+    fun week(st: AppState, anyDay: LocalDate): List<DayInfo> {
+        val mon = monday(anyDay)
+        val wk = weekKey(mon)
+        return (0 until st.schoolDays).map { i ->
+            val d = mon.plusDays(i.toLong())
+            val hol = holiday(st, d) != null
+            val k = d.toString()
+            DayInfo(
+                d, if (hol) 0 else dayLessons(st, d).size,
+                st.hw.count { it.kind == "hw" && !it.done && it.due == k },
+                st.overrides.any { it.week == wk && it.day == i }, hol,
+            )
+        }
     }
 
     /**

@@ -167,7 +167,7 @@ private fun ColumnScope.HolidaySheet(h: Holiday?) {
             Store.update(ctx) { s -> s.copy(holidays = if (h == null) s.holidays + n else s.holidays.map { if (it.id == n.id) n else it }) }
             ui.close()
         }
-        if (h != null) Btn("🗑", kind = BtnKind.Danger) {
+        if (h != null) Btn("", kind = BtnKind.Danger, icon = Ic.trash) {
             Store.update(ctx) { s -> s.copy(holidays = s.holidays.filterNot { it.id == h.id }) }
             ui.close()
         }
@@ -264,7 +264,7 @@ private fun ColumnScope.SubjectSheet(c: CustomSubject?) {
         }
         Text(Tr.t(lang, "subj_dl"), color = T.tx2, fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, top = 6.dp))
     } else {
-        Btn("🖼️ " + Tr.t(lang, "subj_pick_img"), Modifier.fillMaxWidth(), BtnKind.Sec) {
+        Btn(Tr.t(lang, "subj_pick_img"), Modifier.fillMaxWidth(), BtnKind.Sec, icon = Ic.image) {
             pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
     }
@@ -280,7 +280,7 @@ private fun ColumnScope.SubjectSheet(c: CustomSubject?) {
             if (n.img == null) Files.fetchEmoji(ctx, n.emoji)
             ui.close()
         }
-        if (c != null) Btn("🗑", kind = BtnKind.Danger) {
+        if (c != null) Btn("", kind = BtnKind.Danger, icon = Ic.trash) {
             val used = st.week.any { d -> d.any { it.subj == c.id } }
             val del = {
                 Store.update(ctx) { s ->
@@ -327,7 +327,7 @@ fun BackupPage(st: AppState) {
             Column(Modifier.padding(16.dp)) {
                 Text(Tr.t(lang, "exp_d"), color = T.tx2, fontSize = 13.5.sp)
                 Btns {
-                    Btn("💾 " + Tr.t(lang, "exp_file"), Modifier.weight(1f)) { save.launch("schoolschedule-${LocalDate.now()}.json") }
+                    Btn(Tr.t(lang, "exp_file"), Modifier.weight(1f), icon = Ic.save) { save.launch("schoolschedule-${LocalDate.now()}.json") }
                     Btn(Tr.t(lang, "copy"), kind = BtnKind.Sec) {
                         val cm = ctx.getSystemService(ClipboardManager::class.java)
                         cm.setPrimaryClip(ClipData.newPlainText("SchoolSchedule", Backup.export()))
@@ -341,8 +341,8 @@ fun BackupPage(st: AppState) {
             Column(Modifier.padding(16.dp)) {
                 Text(Tr.t(lang, "imp_d"), color = T.tx2, fontSize = 13.5.sp)
                 Btns {
-                    Btn("📂 " + Tr.t(lang, "imp_file"), Modifier.weight(1f), BtnKind.Sec) { open.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
-                    Btn("📋", kind = BtnKind.Sec) {
+                    Btn(Tr.t(lang, "imp_file"), Modifier.weight(1f), BtnKind.Sec, icon = Ic.folder) { open.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
+                    Btn("", kind = BtnKind.Sec, icon = Ic.clip) {
                         val cm = ctx.getSystemService(ClipboardManager::class.java)
                         val text = cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(ctx)?.toString() ?: ""
                         ui.open {
@@ -414,7 +414,7 @@ fun NotifPage(st: AppState) {
             }
         }
         Spacer(Modifier.height(18.dp))
-        Btn("🔔 " + Tr.t(lang, "n_test"), Modifier.fillMaxWidth(), BtnKind.Sec) {
+        Btn(Tr.t(lang, "n_test"), Modifier.fillMaxWidth(), BtnKind.Sec, icon = Ic.bell) {
             enable { ok ->
                 if (ok) {
                     val ev = Notif.events(st).firstOrNull()
@@ -463,4 +463,29 @@ fun FontAndCorners(st: AppState) {
         }
     }
     Text(Tr.t(lang, "f_widget_note"), color = T.tx2, fontSize = 12.5.sp, modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 6.dp))
+}
+
+
+/* ===================== Размер интерфейса и время в ленте ===================== */
+
+@Composable
+fun UiScaleAndTime(st: AppState) {
+    val ctx = LocalContext.current
+    val lang = st.appLang
+    Sec(Tr.t(lang, "ui_scale"))
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            // 80–130 % с шагом 5; пока тянешь — интерфейс меняется вживую, сохраняем на отпускании
+            GradSlider(
+                "", (st.uiScale - .8f) / .5f, listOf(T.s2, T.acc), T.acc,
+                fmt = { "${(80 + it * 50).roundToInt() / 5 * 5}%" },
+                onChange = { v -> val k = ((80 + v * 50).roundToInt() / 5 * 5) / 100f; Store.preview { it.copy(uiScale = k.coerceIn(.8f, 1.3f)) } },
+                onEnd = { Store.update(ctx) { it } },
+            )
+        }
+    }
+    Sec(Tr.t(lang, "time_side"))
+    Chips(listOf("auto" to Tr.t(lang, "ts_auto"), "left" to Tr.t(lang, "ts_left"), "right" to Tr.t(lang, "ts_right")), st.timeSide) { v ->
+        Store.update(ctx) { it.copy(timeSide = v) }
+    }
 }

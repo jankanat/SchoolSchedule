@@ -81,17 +81,10 @@ fun HwScreen(st: AppState) {
     val tk = today.toString()
 
     Page {
+        item { ScreenHead(Tr.t(lang, "hw_title"), Tr.t(lang, "more_week", st.hw.count { it.kind == "hw" && !it.done }).replaceFirstChar { it.uppercase() }) }
         item {
-            Hdr(Tr.t(lang, "hw_title")) {
-                Box(
-                    Modifier.size(40.dp).clip(CircleShape).background(T.acc).tap { ui.open { HwSheet(null, tab) } },
-                    contentAlignment = Alignment.Center,
-                ) { Icon(Ic.plus, null, tint = T.accTx, modifier = Modifier.size(22.dp)) }
-            }
-        }
-        item {
-            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 6.dp)) {
-                Seg(listOf("hw" to Tr.t(lang, "hw_tab_hw"), "note" to Tr.t(lang, "hw_tab_notes")), tab) { tab = it }
+            Box(Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 6.dp).appear(1)) {
+                HeadSeg(listOf("hw" to Tr.t(lang, "hw_tab_hw"), "note" to Tr.t(lang, "hw_tab_notes")), tab, wide = true) { tab = it }
             }
         }
         if (tab == "hw") {
@@ -161,7 +154,7 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
         },
     ) {
         Row(
-            Modifier.fillMaxWidth().clip(shape).background(t.sheet).glass(shape).tap { ui.open { HwSheet(h.id, h.kind) } }
+            Modifier.fillMaxWidth().styleCard(shape).press(shape) { ui.open { HwSheet(h.id, h.kind) } }
                 .padding(horizontal = 12.dp, vertical = 11.dp),
             verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(11.dp),
         ) {
@@ -297,8 +290,8 @@ fun ColumnScope.HwSheet(id: Long?, kind0: String, subj0: String? = null, due0: L
                 ) { Text("✕", color = Color.White, fontSize = 11.sp) }
             }
         }
-        Btn("📷 " + Tr.t(lang, "hw_camera"), kind = BtnKind.Sec, small = true) { runCatching { cam.launch(camUri) } }
-        Btn("🖼️ " + Tr.t(lang, "hw_gallery"), kind = BtnKind.Sec, small = true) {
+        Btn(Tr.t(lang, "hw_camera"), kind = BtnKind.Sec, small = true, icon = Ic.cam) { runCatching { cam.launch(camUri) } }
+        Btn(Tr.t(lang, "hw_gallery"), kind = BtnKind.Sec, small = true, icon = Ic.image) {
             gal.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         }
     }
@@ -316,7 +309,7 @@ fun ColumnScope.HwSheet(id: Long?, kind0: String, subj0: String? = null, due0: L
             Store.update(ctx) { s -> s.copy(hw = if (old == null) s.hw + h else s.hw.map { if (it.id == h.id) h else it }) }
             ui.close()
         }
-        if (old != null) Btn("🗑", kind = BtnKind.Danger) {
+        if (old != null) Btn("", kind = BtnKind.Danger, icon = Ic.trash) {
             Files.deletePhotos(old.photos)
             Store.update(ctx) { s -> s.copy(hw = s.hw.filterNot { it.id == old.id }) }
             ui.close()
@@ -374,34 +367,34 @@ fun ColumnScope.LessonMenu(date: LocalDate, slot: Slot) {
     }
     val hasOv = st.overrides.any { it.week == wk && it.day == d && it.idx == i }
     Group {
-        MenuRow("📝", Tr.t(lang, "lm_hw")) { ui.open { HwSheet(null, "hw", slot.lesson.subj, date) } }
+        MenuRow(Ic.hw, Tr.t(lang, "lm_hw")) { ui.open { HwSheet(null, "hw", slot.lesson.subj, date) } }
         RowDivider()
-        MenuRow("🔁", Tr.t(lang, "lm_swap")) { ui.open { LessonSheet(d, i, wk, "week") } }
+        MenuRow(Ic.restore, Tr.t(lang, "lm_swap")) { ui.open { LessonSheet(d, i, wk, "week") } }
         RowDivider()
-        MenuRow("✖️", Tr.t(lang, "lm_cancel")) {
+        MenuRow(Ic.close, Tr.t(lang, "lm_cancel")) {
             Store.update(ctx) { s -> s.copy(overrides = s.overrides.filterNot { it.week == wk && it.day == d && it.idx == i } + Override(wk, d, i, null)) }
             ui.close()
         }
         if (hasOv) {
             RowDivider()
-            MenuRow("↩️", Tr.t(lang, "lm_restore")) {
+            MenuRow(Ic.restore, Tr.t(lang, "lm_restore")) {
                 Store.update(ctx) { s -> s.copy(overrides = s.overrides.filterNot { it.week == wk && it.day == d && it.idx == i }) }
                 ui.close()
             }
         }
         RowDivider()
-        MenuRow("✏️", Tr.t(lang, "lm_edit")) { ui.open { LessonSheet(d, i, wk, "perm") } }
+        MenuRow(Ic.edit, Tr.t(lang, "lm_edit")) { ui.open { LessonSheet(d, i, wk, "perm") } }
     }
 }
 
 @Composable
-private fun MenuRow(em: String, text: String, onClick: () -> Unit) {
+private fun MenuRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().tap(onClick = onClick).padding(horizontal = 14.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxWidth().press(RoundedCornerShape(16.dp), onClick = onClick).padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(em, fontSize = 18.sp)
-        Text(text, color = T.tx, fontSize = 15.5.sp, fontWeight = FontWeight.Medium)
+        Icon(icon, null, tint = T.acc, modifier = Modifier.size(22.dp))
+        Text(text, color = T.tx, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }
 

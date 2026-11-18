@@ -70,7 +70,7 @@ fun WidgetsScreen(st: AppState, clock: Long) {
     val wl = st.widgetLang
     fun upd(f: (WidgetCfg) -> WidgetCfg) = Store.update(ctx) { it.copy(widget = f(it.widget)) }
     Page {
-        item { Hdr(Tr.t(lang, "tab_widgets"), Tr.t(lang, "w_sub")) }
+        item { ScreenHead(Tr.t(lang, "tab_widgets"), Tr.t(lang, "w_sub")) }
         item {
             // сетка 4 × 7 клеток по 76dp с промежутком 8dp — как в прототипе
             val u = 76; val gp = 8
@@ -121,13 +121,13 @@ fun SettingsScreen(st: AppState) {
     val ctx = LocalContext.current
     val lang = st.appLang
     val later = Tr.t(lang, "later")
-    Page {
-        item { Hdr(Tr.t(lang, "set_title")) }
+    Page(bottomNav = false) {
+        item { HdrBack(Tr.t(lang, "set_title")) { ui.back() } }
         item {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Sec(Tr.t(lang, "set_look"))
                 Group {
-                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (mapOf("ios26" to "iOS 26", "pixel" to "Pixel OS", "ios18" to "iOS 18", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9")[st.style] ?: "iOS 26") + " · " + Tr.t(lang, if (st.theme == "custom") "th_custom" else "th_dark")) { ui.go("appearance") }
+                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (mapOf("ios26" to "iOS 26", "pixel" to "Pixel OS", "ios18" to "iOS 18", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9.5")[st.style] ?: "iOS 26") + " · " + Tr.t(lang, if (st.theme == "custom") "th_custom" else "th_dark")) { ui.go("appearance") }
                     RowDivider()
                     SetRow("🌐", 0xFF0A84FF, Tr.t(lang, "language"), "${st.appLang.uppercase()} · ${Tr.t(lang, "tab_widgets")}: ${st.widgetLang.uppercase()}") { ui.go("language") }
                 }
@@ -174,6 +174,7 @@ fun SettingsScreen(st: AppState) {
 
 @Composable
 fun SubPage(id: String, st: AppState) {
+    if (id == "settings") { SettingsScreen(st); return }
     val ui = LocalUi.current
     val ctx = LocalContext.current
     val lang = st.appLang
@@ -245,6 +246,7 @@ fun SubPage(id: String, st: AppState) {
                 item { HdrBack(Tr.t(lang, "notif")) { ui.back() } }
                 item { NotifPage(st) }
             }
+            "settings" -> { /* рисуется отдельно, см. SubPage */ }
             else -> {
                 item { HdrBack(Tr.t(lang, "appearance")) { ui.back() } }
                 item {
@@ -267,6 +269,7 @@ fun SubPage(id: String, st: AppState) {
                         }
                         if (st.theme == "custom") { VSpace(12.dp); CustomThemeEditor(st) }
                         FontAndCorners(st)
+                        UiScaleAndTime(st)
                         IconSetPicker(st)
                     }
                 }
@@ -363,7 +366,7 @@ fun IconSetPicker(st: AppState) {
 fun StylePicker(st: AppState) {
     val ctx = LocalContext.current
     val styles = listOf("ios26" to ("iOS 26" to "Liquid Glass"), "pixel" to ("Pixel OS" to "Material 3 Expressive"),
-        "ios18" to ("iOS 18" to "Classic"), "color" to ("ColorOS 17" to "Luminous · стекло"), "origin" to ("OriginOS 7" to "Origin Design"), "oneui" to ("One UI 9" to "Samsung"))
+        "ios18" to ("iOS 18" to "Classic"), "color" to ("ColorOS 17" to "Luminous · стекло"), "origin" to ("OriginOS 7" to "Origin Design"), "oneui" to ("One UI 9.5" to "Samsung"))
     val n = Sched.now(st)
     styles.chunked(2).forEach { pair ->
         Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
