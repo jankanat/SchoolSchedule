@@ -221,7 +221,7 @@ private fun NavButtons(tabs: List<NavTab>, btnW: Dp, color: Color) {
  * @param backdrop слой с содержимым экрана (для размытия и преломления под меню)
  */
 @Composable
-fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier = Modifier) {
+fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier = Modifier, accent: Color? = null) {
     val t = T
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
@@ -353,7 +353,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                 Box(
                     Modifier.fillMaxSize()
                         .graphicsLayer {
-                            renderEffect = lensBg.effect(size.width, size.height, density.density, drop.lens, 7f, .35f)
+                            renderEffect = lensBg.effect(size.width, size.height, density.density, drop.lens, 7f, 0f)
                             alpha = if (drop.lens > .01f && Build.VERSION.SDK_INT >= 33) 1f else 0f
                         }
                         .drawBehind {
@@ -363,11 +363,11 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                         },
                 )
                 // стекло
-                Box(Modifier.fillMaxSize().drawBehind { drawRect(Color(0x14FFFFFF)) })
+                Box(Modifier.fillMaxSize().drawBehind { drawRect(Color(0x33FFFFFF)) })
                 // кнопки акцентным цветом — видны только внутри капли
                 Box(
                     Modifier.fillMaxSize().graphicsLayer {
-                        renderEffect = lensTint.effect(size.width, size.height, density.density, drop.lens, 6f, .25f)
+                        renderEffect = lensTint.effect(size.width, size.height, density.density, drop.lens, 6f, 0f)
                     },
                 ) {
                     Box(
@@ -377,7 +377,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                                 translationX = -translationXOf(drop, baseW, density.density)
                                 translationY = -translationYOf(drop, baseH, top, density.density)
                             },
-                    ) { NavButtons(tabs, btnW.dp, t.acc) }
+                    ) { NavButtons(tabs, btnW.dp, accent ?: t.acc) }
                 }
                 // блики по диагонали 45°: сверху-слева и снизу-справа
                 Box(

@@ -479,7 +479,10 @@ fun Tile(emoji: String, color: Long, size: Dp = 40.dp, onAccent: Boolean = false
                 tint = when { onAccent -> Color.White; p.tint == "accent" -> t.acc; p.tint == "bw" -> t.tx; else -> Color(color) },
             )
             res != null -> Image(painterResource(res), contentDescription = null, modifier = Modifier.size(size * k))
-            else -> Text(emoji, fontSize = (size.value * k * .8f).sp)
+            else -> Text(emoji, fontSize = (size.value * k * .8f).sp,
+                style = androidx.compose.ui.text.TextStyle(
+                    platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+                    lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center, androidx.compose.ui.text.style.LineHeightStyle.Trim.Both)))
         }
     }
 }

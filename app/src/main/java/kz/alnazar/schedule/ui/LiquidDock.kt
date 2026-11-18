@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,7 +53,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -84,6 +85,15 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
     val drag = remember { Animatable(0f) }
     var touchX by remember { mutableStateOf(0f) }
     var hover by remember { mutableIntStateOf(-1) }
+    // Какие боковые кнопки нужны на текущей вкладке: «+» — на Главной и Заданиях, настройки — на Главной и Виджетах.
+    // Лишняя кнопка втекает в капсулу так же, как при нажатии на неё.
+    val page = pager.targetPage
+    val showL = remember { Animatable(if (page == 0 || page == 3) 1f else 0f) }
+    val showR = remember { Animatable(if (page == 0 || page == 2) 1f else 0f) }
+    LaunchedEffect(page) {
+        launch { showL.animateTo(if (page == 0 || page == 3) 1f else 0f, tween(560, easing = DECEL)) }
+        launch { showR.animateTo(if (page == 0 || page == 2) 1f else 0f, tween(560, easing = DECEL)) }
+    }
 
     val circ = 62.dp; val gap = 8.dp; val pillH = 68.dp
     val tint = Color(0x66323236)
@@ -96,8 +106,11 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         val cur = if (hover >= 0) hover else pager.targetPage
         // сдвиг круга к точке внутри капсулы
         val travel = with(den) { (gap + circ / 2 + 20.dp).toPx() }
-        val dx = move.value * travel
-        val s = (1f - absorb.value).coerceIn(0f, 1f)
+        val hideL = 1f - showL.value; val hideR = 1f - showR.value
+        val dxL = maxOf(move.value, hideL) * travel
+        val dxR = maxOf(move.value, hideR) * travel
+        val sL = ((1f - absorb.value) * showL.value).coerceIn(0f, 1f)
+        val sR = ((1f - absorb.value) * showR.value).coerceIn(0f, 1f)
         val stretch = drag.value
         val pillScaleX = press.value * (1f + abs(stretch) / with(den) { pillW.toPx() } * .06f)
         val pillTx = rubberX(stretch, with(den) { 8.dp.toPx() })
@@ -106,22 +119,31 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         Canvas(Modifier.fillMaxSize().graphicsLayer {
             renderEffect = gooEffect(.20f, .20f, .22f, 9.dp.toPx())
             alpha = .62f
-        }) { drawBlobs(this, circ, gap, pillW, pillH, dx, s, pillScaleX, press.value, pillTx, onlyAccent = false) }
+        }) { drawBlobs(this, circ, gap, pillW, pillH, dxL, sL, pillScaleX, press.value, pillTx, onlyAccent = false) }
         Canvas(Modifier.fillMaxSize().graphicsLayer { renderEffect = gooEffect(.30f, .86f, .50f, 9.dp.toPx()) }) {
-            drawBlobs(this, circ, gap, pillW, pillH, dx, s, pillScaleX, press.value, pillTx, onlyAccent = true)
+            drawBlobs(this, circ, gap, pillW, pillH, dxR, sR, pillScaleX, press.value, pillTx, onlyAccent = true)
         }
 
-        // ---- левая кнопка: настройки ----
+        // ---- левая кнопка: настройки (с бликами по краю, как у капсулы) ----
+        val rim = Brush.verticalGradient(listOf(Color(0x59FFFFFF), Color.Transparent, Color(0x1AFFFFFF)))
         Box(Modifier.offset(x = 0.dp, y = (pillH - circ) / 2).size(circ)
-            .graphicsLayer { translationX = dx; scaleX = s; scaleY = s; alpha = (1f - absorb.value * 1.4f).coerceIn(0f, 1f) }
+            .graphicsLayer { translationX = dxL; scaleX = sL; scaleY = sL; alpha = (sL * 1.4f).coerceIn(0f, 1f) }
             .clip(CircleShape).backdropBlur(backdrop, 20.dp, Color.Transparent, CircleShape)
-            .press(CircleShape, scaleTo = .88f, onClick = onSettings), contentAlignment = Alignment.Center) {
+            .border(1.dp, rim, CircleShape)
+            .drawWithContent {
+                drawContent()
+                // мягкий блик сверху-слева
+                drawCircle(Brush.radialGradient(listOf(Color(0x2EFFFFFF), Color.Transparent), Offset(size.width * .3f, size.height * .22f), size.width * .6f))
+            }
+            .press(CircleShape, scaleTo = .88f, enabled = sL > .6f, onClick = onSettings), contentAlignment = Alignment.Center) {
             Icon(Ic.set, null, tint = t.tx, modifier = Modifier.size(26.dp))
         }
         // ---- правая кнопка: «+» ----
         Box(Modifier.offset(x = maxWidth - circ, y = (pillH - circ) / 2).size(circ)
-            .graphicsLayer { translationX = -dx; scaleX = s; scaleY = s; alpha = (1f - absorb.value * 1.4f).coerceIn(0f, 1f) }
-            .clip(CircleShape).press(CircleShape, scaleTo = .88f, onClick = onPlus), contentAlignment = Alignment.Center) {
+            .graphicsLayer { translationX = -dxR; scaleX = sR; scaleY = sR; alpha = (sR * 1.4f).coerceIn(0f, 1f) }
+            .clip(CircleShape)
+            .border(1.dp, Brush.verticalGradient(listOf(Color(0x66FFFFFF), Color.Transparent, Color(0x1AFFFFFF))), CircleShape)
+            .press(CircleShape, scaleTo = .88f, enabled = sR > .6f, onClick = onPlus), contentAlignment = Alignment.Center) {
             Icon(Ic.plus, null, tint = Color(0xFF05230F), modifier = Modifier.size(28.dp))
         }
 
@@ -155,7 +177,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
                     while (true) {
                         val ev = awaitPointerEvent()
                         val ch = ev.changes.firstOrNull { it.id == down.id } ?: run { cancelled = true; null } ?: break
-                        if (ch.changedToUp()) { ch.consume(); break }
+                        if (ch.changedToUpIgnoreConsumed()) { ch.consume(); break }
                         touchX = ch.position.x
                         val h2 = idxAt(touchX)
                         if (h2 != hover) { hover = h2; hf.performHapticFeedback(HapticFeedbackType.TextHandleMove) }

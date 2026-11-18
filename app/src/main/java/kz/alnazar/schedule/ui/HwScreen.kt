@@ -148,20 +148,23 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
     SwipeToDismissBox(
         state = state, modifier = Modifier.padding(bottom = 8.dp), enableDismissFromStartToEnd = false,
         backgroundContent = {
-            Box(Modifier.fillMaxSize().clip(shape).background(Color(0xFFFF453A)).padding(end = 22.dp), contentAlignment = Alignment.CenterEnd) {
-                Icon(Ic.trash, null, tint = Color.White, modifier = Modifier.size(22.dp))
+            // красный фон с корзиной виден только пока тянешь карточку (карточка полупрозрачная — иначе он просвечивает)
+            if (state.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Box(Modifier.fillMaxSize().clip(shape).background(Color(0xFFFF453A)).padding(end = 22.dp), contentAlignment = Alignment.CenterEnd) {
+                    Icon(Ic.trash, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                }
             }
         },
     ) {
         Row(
             Modifier.fillMaxWidth().styleCard(shape).press(shape) { ui.open { HwSheet(h.id, h.kind) } }
                 .padding(horizontal = 12.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(11.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp),
         ) {
             if (h.kind == "hw") {
                 val c by animateColorAsState(if (h.done) t.acc else Color.Transparent, label = "chk")
                 Box(
-                    Modifier.padding(top = 8.dp).size(24.dp).clip(CircleShape).background(c)
+                    Modifier.size(24.dp).clip(CircleShape).background(c)
                         .border(2.dp, if (h.done) t.acc else t.tx2, CircleShape)
                         .tap { Store.update(ctx) { s -> s.copy(hw = s.hw.map { if (it.id == h.id) it.copy(done = !it.done) else it }) } },
                     contentAlignment = Alignment.Center,

@@ -64,16 +64,33 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun StyleNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier, onPlus: () -> Unit, onSettings: () -> Unit) {
+    // «+» нужен только на Главной и Заданиях; на Расписании и Виджетах он уходит (там свои кнопки добавления)
+    val showPlus = pager.targetPage == 0 || pager.targetPage == 2
     when (T.nav) {
         "island" -> LiquidDock(tabs, pager, backdrop, modifier, onPlus, onSettings)
-        "glass" -> Box(modifier.fillMaxWidth()) {
-            GlassNav(tabs, pager, backdrop, Modifier.padding(end = 80.dp))
-            SideGlassBtn(Ic.plus, backdrop, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 14.dp, bottom = 14.dp), 70.dp, onPlus)
+        "glass", "origin" -> {
+            val endPad by animateDpAsState(if (showPlus) 80.dp else 0.dp, spring(.8f, 380f), label = "navEnd")
+            Box(modifier.fillMaxWidth()) {
+                GlassNav(tabs, pager, backdrop, Modifier.padding(end = endPad), accent = if (T.nav == "origin") Color(0xFF4C8DFF) else null)
+                SidePop(showPlus, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 14.dp, bottom = 14.dp)) {
+                    SideGlassBtn(Ic.plus, backdrop, Modifier, 70.dp, onPlus)
+                }
+            }
         }
-        "m3" -> PixelNav(tabs, pager, backdrop, modifier, onPlus)
+        "m3" -> PixelNav(tabs, pager, backdrop, modifier, onPlus, showPlus)
         "ios18" -> IosBar(tabs, pager, backdrop, modifier)
-        else -> FloatNav(tabs, pager, backdrop, modifier, onPlus)
+        else -> FloatNav(tabs, pager, backdrop, modifier, onPlus, showPlus)
     }
+}
+
+/** Боковая кнопка, которая появляется и уходит с масштабом и мягкой пружиной. */
+@Composable
+fun SidePop(show: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    androidx.compose.animation.AnimatedVisibility(
+        show, modifier,
+        enter = androidx.compose.animation.scaleIn(spring(.7f, 420f), initialScale = .2f) + androidx.compose.animation.fadeIn(tween(200)),
+        exit = androidx.compose.animation.scaleOut(tween(300, easing = androidx.compose.animation.core.CubicBezierEasing(.05f, .7f, .1f, 1f)), targetScale = .2f) + androidx.compose.animation.fadeOut(tween(260)),
+    ) { content() }
 }
 
 /** Круглая стеклянная кнопка рядом с меню (iOS 26, OriginOS, One UI). */
@@ -125,14 +142,14 @@ private fun Modifier.noRippleClick(onClick: () -> Unit) = this.clickable(Mutable
  * у остальных — только иконки. Справа — коралловая FAB скруглённым квадратом.
  */
 @Composable
-fun PixelNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier = Modifier, onPlus: () -> Unit) {
+fun PixelNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier = Modifier, onPlus: () -> Unit, showPlus: Boolean = true) {
     val t = T
     val scope = rememberCoroutineScope()
     val cur = pager.targetPage
-    Row(modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 18.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+    Row(modifier.fillMaxWidth().navigationBarsPadding().padding(start = 12.dp, end = 12.dp, bottom = 18.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically) {
         Row(
-            Modifier.height(68.dp).shadow(10.dp, RoundedCornerShape(34.dp)).clip(RoundedCornerShape(34.dp)).background(Color(0xFF36343B)).padding(horizontal = 8.dp),
+            Modifier.weight(1f, fill = false).height(68.dp).shadow(10.dp, RoundedCornerShape(34.dp)).clip(RoundedCornerShape(34.dp)).background(Color(0xFF36343B)).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEachIndexed { i, tab ->
@@ -143,21 +160,25 @@ fun PixelNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                     Modifier.height(52.dp).clip(RoundedCornerShape(26.dp)).background(bg)
                         .press(RoundedCornerShape(26.dp)) { scope.launch { pager.animateScrollToPage(i) } }
                         .animateContentSize(spring(dampingRatio = .62f, stiffness = 380f))
-                        .padding(horizontal = if (on) 18.dp else 14.dp),
+                        .padding(horizontal = if (on) 16.dp else 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(tab.icon, contentDescription = tab.label, tint = ic, modifier = Modifier.size(24.dp))
                     if (on) {
-                        Spacer(Modifier.width(8.dp))
-                        NavLabel(tab.label, t.accTx, 14f, bold = true)
+                        Spacer(Modifier.width(6.dp))
+                        NavLabel(tab.label, t.accTx, 13f, bold = true)
                     }
                 }
             }
         }
-        Spacer(Modifier.width(10.dp))
-        Box(Modifier.size(68.dp).shadow(10.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color(0xFFFF8A80))
-            .press(RoundedCornerShape(22.dp), scaleTo = .9f, onClick = onPlus), contentAlignment = Alignment.Center) {
-            Icon(Ic.plus, null, tint = Color(0xFF4A0E0B), modifier = Modifier.size(28.dp))
+        SidePop(showPlus) {
+            Row {
+                Spacer(Modifier.width(10.dp))
+                Box(Modifier.size(64.dp).shadow(10.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color(0xFFFF8A80))
+                    .press(RoundedCornerShape(22.dp), scaleTo = .9f, onClick = onPlus), contentAlignment = Alignment.Center) {
+                    Icon(Ic.plus, null, tint = Color(0xFF4A0E0B), modifier = Modifier.size(28.dp))
+                }
+            }
         }
     }
 }
@@ -192,7 +213,7 @@ fun IosBar(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modif
  * он едет вслед за пальцем при свайпе страниц.
  */
 @Composable
-fun FloatNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier = Modifier, onPlus: () -> Unit) {
+fun FloatNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier = Modifier, onPlus: () -> Unit, showPlus: Boolean = true) {
     val t = T
     val scope = rememberCoroutineScope()
     val shape = RoundedCornerShape(999.dp)
@@ -205,7 +226,7 @@ fun FloatNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
             val pad = 6.dp
             val itemW = (maxWidth - pad * 2) / n
             val frac = (pager.currentPage + pager.currentPageOffsetFraction).coerceIn(0f, (n - 1).toFloat())
-            Box(Modifier.offset(x = pad + itemW * frac, y = pad).width(itemW).height(h - pad * 2).clip(shape).background(Color.White.copy(alpha = .18f)))
+            Box(Modifier.offset(x = pad + itemW * frac - 3.dp, y = pad).width(itemW + 6.dp).height(h - pad * 2).clip(shape).background(Color.White.copy(alpha = .18f)))
             Row(Modifier.fillMaxSize().padding(horizontal = pad)) {
                 tabs.forEachIndexed { i, tab ->
                     val on = i == pager.targetPage
@@ -217,12 +238,16 @@ fun FloatNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                     ) {
                         Icon(tab.icon, contentDescription = null, tint = c, modifier = Modifier.size(24.dp))
                         Spacer(Modifier.height(3.dp))
-                        NavLabel(tab.label, c, 11f, bold = true)
+                        NavLabel(tab.label, c, 10f, bold = true)
                     }
                 }
             }
         }
-        Spacer(Modifier.width(10.dp))
-        SideGlassBtn(Ic.plus, backdrop, Modifier, h, onPlus)
+        SidePop(showPlus) {
+            Row {
+                Spacer(Modifier.width(10.dp))
+                SideGlassBtn(Ic.plus, backdrop, Modifier, h, onPlus)
+            }
+        }
     }
 }

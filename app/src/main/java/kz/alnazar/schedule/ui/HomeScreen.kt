@@ -40,6 +40,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -268,11 +273,14 @@ private fun HeroIos(h: HeroInfo?, n: Now, st: AppState, lang: String) {
     val v = Sched.subj(st, h.slot!!.lesson.subj, lang)
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).liquid(shape, T.acc.copy(alpha = .22f)).press(shape) {}.padding(18.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-        Box(Modifier.size(118.dp), contentAlignment = Alignment.Center) {
-            Ring(h.progress, T.acc, Color.White.copy(alpha = .14f), 10.dp, Modifier.size(118.dp))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(h.big, color = T.tx, fontSize = if (h.big.length > 3) 26.sp else 38.sp, fontWeight = FontWeight.Medium)
-                Text(h.unit.substringBefore("\n"), color = T.tx2, fontSize = 13.sp)
+        Box(Modifier.size(124.dp), contentAlignment = Alignment.Center) {
+            Ring(h.progress, T.acc, Color.White.copy(alpha = .14f), 9.dp, Modifier.size(124.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                // время вида 08:00 — одной строкой строго по центру кольца, не касаясь дуги
+                Text(h.big, color = T.tx, fontSize = if (h.big.length > 3) 24.sp else 38.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false,
+                    style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum", platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false)))
+                val u = h.unit.substringBefore("\n")
+                if (u.isNotBlank()) Text(u, color = T.tx2, fontSize = 13.sp, maxLines = 1)
             }
         }
         Column(Modifier.weight(1f)) {
@@ -436,7 +444,10 @@ private fun BigEmoji(emoji: String, size: androidx.compose.ui.unit.Dp) {
     val key = IconRes.key(emoji)
     val res = key?.let { IconRes.fluent[it] }
     if (res != null) androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(res), null, Modifier.size(size))
-    else Text(emoji, fontSize = (size.value * .72f).sp)
+    else Text(emoji, fontSize = (size.value * .72f).sp,
+        style = androidx.compose.ui.text.TextStyle(
+            platformStyle = androidx.compose.ui.text.PlatformTextStyle(includeFontPadding = false),
+            lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center, androidx.compose.ui.text.style.LineHeightStyle.Trim.Both)))
 }
 
 /** Кольцо прогресса (iOS). */
@@ -484,7 +495,8 @@ private fun Tiles(h: HeroInfo?, n: Now, st: AppState, todo: List<Hw>, lang: Stri
     val dueTomorrow = todo.filter { it.due == n.date.plusDays(1).toString() }
     val dueList = if (h == null) dueTomorrow else dueToday
     val shape = RoundedCornerShape(if (t.id == "oneui") 36.dp else if (t.pixel) 32.dp else 30.dp)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(if (t.pixel) 8.dp else 12.dp)) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).then(if (t.id == "oneui") Modifier else Modifier.height(IntrinsicSize.Max)),
+        horizontalArrangement = Arrangement.spacedBy(if (t.pixel) 8.dp else 12.dp)) {
         // «Далее»
         val bgA = when (t.id) {
             "pixel" -> Modifier.clip(shape).background(Color(0xFFFF8A80))
@@ -511,11 +523,11 @@ private fun Tiles(h: HeroInfo?, n: Now, st: AppState, todo: List<Hw>, lang: Stri
             }
             return@Row
         }
-        Column(Modifier.weight(1f).height(tileH).then(bgA).press(shape) {}.padding(16.dp)) {
+        Column(Modifier.weight(1f).fillMaxHeight().heightIn(min = tileH).then(bgA).press(shape) {}.padding(16.dp)) {
             Text(Tr.t(lang, "next") + (nextSlot?.let { " · " + Tr.hm(it.start) } ?: ""), color = fgA.copy(alpha = .8f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             nextSlot?.let { val v = Sched.subj(st, it.lesson.subj, lang); Box(Modifier.padding(top = 10.dp)) { Tile(v.emoji, v.color, 46.dp) } }
             Spacer(Modifier.weight(1f))
-            Text(nextSlot?.let { Sched.subj(st, it.lesson.subj, lang).name } ?: "—", color = fgA, fontSize = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(nextSlot?.let { Sched.subj(st, it.lesson.subj, lang).name } ?: "—", color = fgA, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
             nextSlot?.lesson?.room?.takeIf { it.isNotBlank() }?.let { Text(Tr.t(lang, "room", it), color = fgA.copy(alpha = .8f), fontSize = 14.sp) }
         }
         // «Сдать сегодня»
@@ -525,7 +537,7 @@ private fun Tiles(h: HeroInfo?, n: Now, st: AppState, todo: List<Hw>, lang: Stri
             else -> Modifier.liquid(shape, Color(0x47FF9F0A))
         }
         val fgB = if (t.pixel) Color(0xFFE8DEF8) else t.tx
-        Column(Modifier.weight(1f).height(tileH).then(bgB).press(shape, onClick = onTasks).padding(16.dp)) {
+        Column(Modifier.weight(1f).fillMaxHeight().heightIn(min = tileH).then(bgB).press(shape, onClick = onTasks).padding(16.dp)) {
             Text(Tr.t(lang, if (h == null) "due_tomorrow" else "due_today"), color = fgB.copy(alpha = .8f), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.Top) {
                 Text("${dueList.size}", color = fgB, fontSize = if (t.pixel) 64.sp else 46.sp, lineHeight = if (t.pixel) 60.sp else 48.sp,
@@ -534,7 +546,7 @@ private fun Tiles(h: HeroInfo?, n: Now, st: AppState, todo: List<Hw>, lang: Stri
             }
             Spacer(Modifier.weight(1f))
             Text(dueList.mapNotNull { it.subj }.distinct().joinToString(", ") { Sched.subj(st, it, lang).name }.ifEmpty { Tr.t(lang, "no_hw") },
-                color = fgB, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                color = fgB, fontSize = 16.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
             val more = todo.size - dueList.size
             if (more > 0) Text(Tr.t(lang, "more_week", more), color = fgB.copy(alpha = .8f), fontSize = 13.sp)
         }
@@ -623,34 +635,50 @@ private fun OriginTop(lang: String, today: LocalDate, n: Now, actions: List<Pair
  */
 @Composable
 private fun GlassDigits(text: String, modifier: Modifier) {
-    val tm = rememberTextMeasurer()
+    val ctx = LocalContext.current
     val d = LocalDensity.current
     val cfg = LocalConfiguration.current
     var pos by remember { mutableStateOf(Offset.Zero) }
     val screenW = with(d) { cfg.screenWidthDp.dp.toPx() }
     val screenH = with(d) { cfg.screenHeightDp.dp.toPx() }
-    Canvas(modifier.onGloballyPositioned { pos = it.positionInRoot() }) {
-        val res = tm.measure(text, TextStyle(fontSize = 168.sp, fontFamily = CondensedFont, fontWeight = FontWeight.ExtraBold, letterSpacing = (-4).sp))
-        val raw = res.getPathForRange(0, text.length)
+    // Настоящие контуры букв (getPathForRange у Compose даёт только прямоугольник выделения). Шрифт — узкий жирный Roboto.
+    val tf = remember {
+        runCatching {
+            android.graphics.Typeface.Builder(ctx.assets, "f_flex.ttf").setFontVariationSettings("'wght' 800, 'wdth' 75").build()
+        }.getOrNull() ?: android.graphics.Typeface.DEFAULT_BOLD
+    }
+    val glyphs = remember(text, tf, d.density) {
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = tf; textSize = 168f * d.density; letterSpacing = -.025f
+        }
+        val raw = android.graphics.Path()
+        paint.getTextPath(text, 0, text.length, 0f, 0f, raw)
         // убираем наложения контуров шрифта, чтобы кромка шла только по внешнему краю
-        val path = Path().apply { op(raw, Path(), PathOperation.Union) }
-        val dx = (size.width - res.size.width) / 2f
-        val dy = (size.height - res.size.height) / 2f
+        val merged = android.graphics.Path()
+        val ok = runCatching { merged.op(raw, android.graphics.Path(), android.graphics.Path.Op.UNION) }.getOrDefault(false)
+        val p = if (ok && !merged.isEmpty) merged else raw
+        val rb = android.graphics.RectF(); p.computeBounds(rb, true)
+        p.offset(-rb.left, -rb.top)
+        Triple(p.asComposePath(), rb.width(), rb.height())
+    }
+    val (path, gw, gh) = glyphs
+    Canvas(modifier.onGloballyPositioned { pos = it.positionInRoot() }) {
+        val dx = (size.width - gw) / 2f
+        val dy = (size.height - gh) / 2f
         translate(dx, dy) {
             // тень
             translate(0f, 8.dp.toPx()) { drawPath(path, Color.Black.copy(alpha = .28f)) }
             clipPath(path) {
                 // обои сквозь стекло: увеличены относительно центра цифр и ярче
-                val cx = res.size.width / 2f; val cy = res.size.height / 2f
-                scale(1.08f, pivot = Offset(cx, cy)) {
+                scale(1.08f, pivot = Offset(gw / 2f, gh / 2f)) {
                     translate(-pos.x - dx, -pos.y - dy) { drawStyleWall("origin", screenW, screenH, boost = 1.9f) }
                 }
-                drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = .16f), Color.White.copy(alpha = .04f))))
+                drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = .16f), Color.White.copy(alpha = .04f))), size = Size(gw, gh))
             }
             // кромка: блики на 45°
             drawPath(path, Brush.linearGradient(
                 0f to Color.White.copy(alpha = .9f), .3f to Color.White.copy(alpha = .15f), .7f to Color.White.copy(alpha = .1f), 1f to Color.White.copy(alpha = .7f),
-                start = Offset.Zero, end = Offset(res.size.width.toFloat(), res.size.height.toFloat()),
+                start = Offset.Zero, end = Offset(gw, gh),
             ), style = Stroke(1.6.dp.toPx()))
         }
     }

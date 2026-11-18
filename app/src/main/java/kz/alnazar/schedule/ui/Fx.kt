@@ -41,7 +41,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.changedToUp
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.Font
@@ -120,7 +120,9 @@ fun Modifier.press(
     return this
         .pointerInput(Unit) {
             awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
+                // Нажатие забираем себе: родитель с таким же press его не увидит (кнопка внутри карточки)
+                val down = awaitFirstDown(requireUnconsumed = true)
+                down.consume()
                 touch = down.position
                 scope.launch { scale.animateTo(scaleTo, spring(.62f, 520f)) }
                 if (glow) scope.launch { glowA.animateTo(1f, tween(140)) }
@@ -136,7 +138,8 @@ fun Modifier.press(
                 while (true) {
                     val ev = awaitPointerEvent(PointerEventPass.Final)
                     val ch = ev.changes.firstOrNull { it.id == down.id } ?: run { cancelled = true; null } ?: break
-                    if (ch.changedToUp()) { upPos = ch.position; if (!ch.isConsumed) ch.consume(); break }
+                    // changedToUp() возвращает false, если предок уже забрал событие (clickable шторки) — поэтому IgnoreConsumed
+                    if (ch.changedToUpIgnoreConsumed()) { upPos = ch.position; if (!ch.isConsumed) ch.consume(); break }
                     if (ch.isConsumed) { cancelled = true; break }           // родитель прокручивает
                     touch = ch.position
                     val d = ch.position - down.position
