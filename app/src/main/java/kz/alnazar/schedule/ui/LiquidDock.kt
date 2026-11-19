@@ -117,10 +117,12 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         fun dxR() = maxOf(move.value, 1f - showR.value) * travel
         fun sL() = ((1f - absorb.value) * showL.value).coerceIn(0f, 1f)
         fun sR() = if (PlusAnchor.open) 0f else ((1f - absorb.value) * showR.value).coerceIn(0f, 1f)
-        fun pillSX() = press.value * (1f + abs(drag.value) / pillWpx * .06f)
+        val rubberYpx = with(den) { 10.dp.toPx() }; val pillHpx = with(den) { pillH.toPx() }
+        // вертикальная тяга увеличивает капсулу целиком (равномерно), поэтому она остаётся капсулой, только крупнее
+        fun vf() = 1f + abs(rubberX(dragY.value, rubberYpx)) / pillHpx * .5f
+        fun pillSX() = press.value * (1f + abs(drag.value) / pillWpx * .06f) * vf()
         fun pillTx() = rubberX(drag.value, rubberPx)
-        val rubberYpx = with(den) { 16.dp.toPx() }; val pillHpx = with(den) { pillH.toPx() }
-        fun pillSY() = press.value * (1f + abs(rubberX(dragY.value, rubberYpx)) / pillHpx * 1.3f)
+        fun pillSY() = press.value * vf()
         fun pillTy() = rubberX(dragY.value, rubberYpx)
         val lOn by remember { androidx.compose.runtime.derivedStateOf { ((1f - absorb.value) * showL.value) > .6f } }
         val rOn by remember { androidx.compose.runtime.derivedStateOf { !PlusAnchor.open && ((1f - absorb.value) * showR.value) > .6f } }
