@@ -58,6 +58,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.PlatformTextStyle
@@ -230,6 +231,8 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val drop = remember { Drop() }
+    val hostView = LocalView.current
+    androidx.compose.runtime.DisposableEffect(hostView) { onDispose { hostView.isHapticFeedbackEnabled = true } }
     var pressed by remember { mutableStateOf(false) }
     var grabbing by remember { mutableStateOf(false) }
     val pagerDragged by pager.interactionSource.collectIsDraggedAsState()
@@ -292,6 +295,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
             Modifier.fillMaxSize().pointerInput(navW) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    hostView.isHapticFeedbackEnabled = false
                     pressed = true; drop.wake++
                     val x0 = down.position.x; val y0 = down.position.y
                     val ex = drop.x
@@ -313,7 +317,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                             c.consume()
                         }
                     }
-                    pressed = false; grabbing = false; drop.syt = 0f; drop.wake++
+                    pressed = false; grabbing = false; drop.syt = 0f; drop.wake++; hostView.isHapticFeedbackEnabled = true
                     if (dragging) select(((drop.x - btnX(0)) / btnW).roundToInt())
                     else select(((x0 / dpx - NAV_PAD) / btnW).toInt())
                 }
