@@ -52,6 +52,15 @@ object WidgetUpdater {
             app, 1, Intent(app, TickReceiver::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        // во время уроков и перемен минуты на виджете идут каждую минуту — но будильник «не будящий» (RTC):
+        // при выключенном экране он ждёт включения и батарею не тратит
+        val n = Sched.now(st)
+        val liveNow = n.phase == kz.alnazar.schedule.logic.Phase.LESSON || n.phase == kz.alnazar.schedule.logic.Phase.BREAK ||
+            (n.phase == kz.alnazar.schedule.logic.Phase.BEFORE && n.minutesLeft <= 60)
+        if (liveNow) {
+            val nextMin = (System.currentTimeMillis() / 60_000L + 1) * 60_000L
+            if (nextMin < at) { am.setWindow(AlarmManager.RTC, nextMin, 5_000L, pi); return }
+        }
         if (am.canScheduleExactAlarms()) {
             am.setExactAndAllowWhileIdle(AlarmManager.RTC, at, pi)
         } else {
