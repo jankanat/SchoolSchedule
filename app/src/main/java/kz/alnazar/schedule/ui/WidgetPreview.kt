@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -75,10 +76,24 @@ fun WidgetFrame(w: Int, h: Int, pad: androidx.compose.foundation.layout.PaddingV
     )
 }
 
+/** Цвет подписи-метки: у iOS красная, как в Календаре. */
+@Composable
+private fun lbColor(): Color = if (T.id.startsWith("ios")) Color(0xFFFF6961) else T.acc
+/** Тёмный текст на акцентной заливке. */
+@Composable
+private fun inkColor(): Color = lerp(T.acc, Color.Black, .8f)
+
+@Composable
+private fun Bar(frac: Float, color: Color, mod: Modifier = Modifier) {
+    Box(mod.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)).background(T.line)) {
+        Box(Modifier.fillMaxWidth(frac.coerceIn(0f, 1f)).fillMaxHeight().background(color))
+    }
+}
+
 @Composable
 private fun Lb(a: String, b: String = "", size: TextUnit = 10.sp, center: Boolean = false) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (center) Arrangement.Center else Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-        Text(if (T.secUpper) a.uppercase() else a, color = T.acc, fontSize = if (T.secUpper) size else size * 1.1f, fontWeight = FontWeight.Bold, letterSpacing = if (T.secUpper) .5.sp else 0.sp, maxLines = 2,
+        Text(if (T.secUpper) a.uppercase() else a, color = lbColor(), fontSize = if (T.secUpper) size else size * 1.1f, fontWeight = FontWeight.Bold, letterSpacing = if (T.secUpper) .5.sp else 0.sp, maxLines = 2,
             textAlign = if (center) TextAlign.Center else TextAlign.Start, lineHeight = (size.value * 1.2f).sp)
         if (b.isNotEmpty()) Text(b, color = T.tx2, fontSize = size, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 6.dp))
     }
@@ -119,10 +134,54 @@ fun WidgetPreview(size: String, st: AppState, n: Now, lang: String) {
             }
             if (n.phase == Phase.LESSON) {
                 val c = L[n.cur]; val v = sv(c)
-                Lb(Tr.t(lang, "now"), minutes(n.minutesLeft, lang))
-                Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Tile(v.emoji, v.color, 28.dp)
-                    Column { Nm(v.name, 15.sp, 2); Mt(Sched.meta(L, n.cur, lang, cfg.time, cfg.room)) }
+                val frac = (n.minute - c.start).toFloat() / (c.end - c.start).coerceAtLeast(1)
+                when (T.id) {
+                    "pixel" -> Column(Modifier.fillMaxWidth().padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.size(58.dp).clip(RoundedCornerShape(29.dp)).background(T.acc), contentAlignment = Alignment.Center) {
+                            Text(Tr.hm(c.end), color = inkColor(), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(5.dp))
+                        Nm(v.name, 14.sp, 1, true); Mt(Sched.meta(L, n.cur, lang, cfg.time, cfg.room), center = true)
+                    }
+                    "ios26", "ios18" -> {
+                        Lb(Tr.t(lang, "now"), if (cfg.room) Sched.roomLabel(L, n.cur, lang) else "")
+                        Spacer(Modifier.height(3.dp)); Nm(v.name, 18.sp, 2)
+                        Spacer(Modifier.weight(1f))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(Tr.hm(c.end), color = T.tx, fontSize = 30.sp, maxLines = 1)
+                            Text("  " + Tr.t(lang, "till", "").trim(), color = T.tx2, fontSize = 11.sp, modifier = Modifier.padding(bottom = 5.dp))
+                        }
+                        Spacer(Modifier.height(4.dp)); Bar(frac, lbColor())
+                    }
+                    "origin" -> {
+                        Lb(Tr.t(lang, "now"))
+                        Text(Tr.hm(c.end), color = T.tx, fontSize = 42.sp, fontWeight = FontWeight.Thin, maxLines = 1)
+                        Spacer(Modifier.weight(1f))
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Tile(v.emoji, v.color, 26.dp)
+                            Column { Nm(v.name, 13.sp, 2); Mt(Sched.meta(L, n.cur, lang, false, cfg.room)) }
+                        }
+                    }
+                    "oneui" -> {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Box(Modifier.size(12.dp).clip(RoundedCornerShape(4.dp)).background(T.acc))
+                            Text(Tr.t(lang, "now"), color = T.acc, fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(6.dp)); Nm(v.name, 17.sp, 2)
+                        Spacer(Modifier.weight(1f))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(Tr.hm(c.start), color = T.tx2, fontSize = 10.sp); Text(Tr.hm(c.end), color = T.tx2, fontSize = 10.sp)
+                        }
+                        Spacer(Modifier.height(3.dp)); Bar(frac, T.acc)
+                    }
+                    else -> {
+                        Lb(Tr.t(lang, "now"), minutes(n.minutesLeft, lang))
+                        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Tile(v.emoji, v.color, 32.dp)
+                            Column { Nm(v.name, 15.sp, 2); Mt(Sched.meta(L, n.cur, lang, cfg.time, cfg.room)) }
+                        }
+                        Spacer(Modifier.weight(1f)); Bar(frac, T.acc, Modifier.padding(bottom = 4.dp))
+                    }
                 }
             } else {
                 Lb(Tr.t(lang, if (n.phase == Phase.BEFORE) "soon" else "break"), Tr.t(lang, "startsIn", n.minutesLeft))
@@ -131,6 +190,7 @@ fun WidgetPreview(size: String, st: AppState, n: Now, lang: String) {
                     Column { Nm(Tr.t(lang, "break"), 15.sp); Mt(Tr.t(lang, "next") + ": " + Tr.hm(L[n.next].start)) }
                 }
             }
+            if (n.phase != Phase.LESSON || (T.id != "pixel" && T.id != "origin")) {
             Spacer(Modifier.weight(.5f))
             Box(Modifier.fillMaxWidth().padding(top = 1.dp, bottom = 2.dp).height(1.dp).background(T.line))
             if (n.next >= 0) {
@@ -141,6 +201,7 @@ fun WidgetPreview(size: String, st: AppState, n: Now, lang: String) {
                 }
                 Mt(Sched.meta(L, n.next, lang, cfg.time, cfg.room))
             } else Mt(Tr.t(lang, "lastLesson"))
+            }
         }
         /* ---------- 2×1 ---------- */
         "2x1" -> WidgetFrame(160, 76, androidx.compose.foundation.layout.PaddingValues(horizontal = 12.dp, vertical = 10.dp)) {
@@ -261,36 +322,87 @@ private fun RowMini(s: Slot, emoji: String, color: Long, name: String) {
 private fun ColumnScope.Lr(st: AppState, L: List<Slot>, i: Int, lang: String, state: LsState) {
     val s = L[i]; val v = Sched.subj(st, s.lesson.subj, lang).let { it.copy(name = it.name + Sched.hwMark(st, s)) }
     val a = if (state == LsState.Past) .42f else 1f
-    Row(
-        Modifier.weight(1f, fill = false).heightIn(max = 36.dp).fillMaxWidth().clip(RoundedCornerShape(11.dp))
-            .background(if (state == LsState.Cur) T.accSoft else Color.Transparent)
-            .padding(start = 4.dp, end = 6.dp, top = 2.dp, bottom = 2.dp).graphicsAlpha(a),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        Text("${s.idx + 1}", color = T.tx2, fontSize = 10.sp, modifier = Modifier.width(10.dp), textAlign = TextAlign.Center)
-        Tile(v.emoji, v.color, 24.dp)
-        Column(Modifier.weight(1f)) {
-            Text(v.name, color = T.tx, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Mt(Sched.meta(L, i, lang, st.widget.time, st.widget.room, startOnly = true), 9.5.sp)
+    val cur = state == LsState.Cur
+    val meta = Sched.meta(L, i, lang, st.widget.time, st.widget.room, startOnly = true)
+    val bar = Color(v.color)
+    @Composable fun Title(c: Color = T.tx) = Text(v.name, color = c, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    when (T.id) {
+        "ios26", "ios18" -> Row(Modifier.weight(1f, fill = false).heightIn(max = 36.dp).fillMaxWidth().padding(vertical = 3.dp).graphicsAlpha(a), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.width(3.dp).height(26.dp).clip(RoundedCornerShape(2.dp)).background(bar))
+            Column(Modifier.weight(1f)) { Title(); Mt(meta, 9.5.sp) }
+        }
+        "pixel" -> Row(
+            Modifier.weight(1f, fill = false).heightIn(max = 36.dp).fillMaxWidth().padding(bottom = 2.dp).clip(RoundedCornerShape(if (cur) 16.dp else 8.dp))
+                .background(if (cur) T.acc else T.tx.copy(alpha = .07f)).padding(horizontal = 10.dp, vertical = 3.dp).graphicsAlpha(a),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Tile(v.emoji, v.color, 22.dp)
+            Column(Modifier.weight(1f)) {
+                Title(if (cur) inkColor() else T.tx)
+                if (meta.isNotEmpty()) Text(meta, color = if (cur) inkColor() else T.tx2, fontSize = 9.5.sp, maxLines = 1)
+            }
+        }
+        "origin" -> Column(Modifier.weight(1f, fill = false).heightIn(max = 38.dp).fillMaxWidth().graphicsAlpha(a)) {
+            if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(T.line))
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("${s.idx + 1}", color = if (cur) T.acc else T.tx2, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(10.dp))
+                Tile(v.emoji, v.color, 24.dp)
+                Column(Modifier.weight(1f)) {
+                    Title()
+                    Text(Tr.hm(s.start), color = if (cur) T.acc else T.tx2, fontSize = 9.5.sp, maxLines = 1)
+                }
+            }
+        }
+        "oneui" -> Row(Modifier.weight(1f, fill = false).heightIn(max = 36.dp).fillMaxWidth().padding(vertical = 4.dp).graphicsAlpha(a), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(Tr.hm(s.start), color = if (cur) T.acc else T.tx2, fontSize = 10.5.sp, fontWeight = if (cur) FontWeight.Bold else FontWeight.Normal, modifier = Modifier.width(38.dp))
+            Box(Modifier.width(3.dp).height(26.dp).clip(RoundedCornerShape(2.dp)).background(bar))
+            Column(Modifier.weight(1f)) {
+                Title()
+                val rm = Sched.roomLabel(L, i, lang)
+                if (st.widget.room && rm.isNotEmpty()) Mt(rm, 9.5.sp)
+            }
+        }
+        else -> Row(
+            Modifier.weight(1f, fill = false).heightIn(max = 36.dp).fillMaxWidth().clip(RoundedCornerShape(11.dp))
+                .background(if (cur) T.accSoft else Color.Transparent)
+                .padding(start = 4.dp, end = 6.dp, top = 2.dp, bottom = 2.dp).graphicsAlpha(a),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Text("${s.idx + 1}", color = T.tx2, fontSize = 10.sp, modifier = Modifier.width(10.dp), textAlign = TextAlign.Center)
+            Tile(v.emoji, v.color, 24.dp)
+            Column(Modifier.weight(1f)) { Title(); Mt(meta, 9.5.sp) }
         }
     }
 }
 
 @Composable
 private fun ColumnScope.Cols(st: AppState, L: List<Slot>, start: Int, cur: Int, lang: String) {
-    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(if (T.id == "pixel") 4.dp else 7.dp)) {
         val items = L.drop(start).take(4)
         items.forEachIndexed { k, s ->
             val i = start + k; val v = Sched.subj(st, s.lesson.subj, lang).let { it.copy(name = it.name + Sched.hwMark(st, s)) }
             val isCur = i == cur
-            val shape = RoundedCornerShape(14.dp)
-            var m = Modifier.weight(1f).fillMaxHeight().clip(shape).background(if (isCur) T.accSoft else T.tx.copy(alpha = .07f))
-            if (isCur) m = m.border(1.2.dp, T.acc, shape)
+            val px = T.id == "pixel"
+            val shape = RoundedCornerShape(when (T.id) { "pixel" -> if (isCur) 20.dp else 10.dp; "origin" -> 18.dp; "oneui" -> 16.dp; else -> 14.dp })
+            var m = Modifier.weight(1f).fillMaxHeight().clip(shape)
+                .background(if (px && isCur) T.acc else if (isCur) T.accSoft else T.tx.copy(alpha = .07f))
+            if (isCur && !px && T.id.startsWith("color")) m = m.border(1.2.dp, T.acc, shape)
+            val fg = if (px && isCur) inkColor() else T.tx
+            val fg2 = if (px && isCur) inkColor() else T.tx2
             Column(m.padding(horizontal = 6.dp, vertical = 7.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Tile(v.emoji, v.color, 26.dp)
-                Text(v.name, color = T.tx, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 12.sp, modifier = Modifier.padding(top = 2.dp))
-                if (st.widget.time) Mt(Tr.hm(s.start), 9.5.sp)
-                if (st.widget.room) Mt(Sched.roomLabel(L, i, lang), 9.5.sp)
+                when (T.id) {
+                    "ios26", "ios18" -> {
+                        Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(Color(v.color)))
+                        Spacer(Modifier.height(3.dp))
+                        Text(Tr.hm(s.start), color = lbColor(), fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                    "origin" -> Text(Tr.hm(s.start), color = T.tx, fontSize = 17.sp, fontWeight = FontWeight.Thin, maxLines = 1)
+                    "oneui" -> Text(Tr.hm(s.start), color = if (isCur) T.acc else T.tx2, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    else -> Tile(v.emoji, v.color, 26.dp)
+                }
+                Text(v.name, color = fg, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 12.sp, modifier = Modifier.padding(top = 2.dp))
+                if (st.widget.time && (T.id == "color" || px)) Text(Tr.hm(s.start), color = fg2, fontSize = 9.5.sp, maxLines = 1)
+                if (st.widget.room) { val rm = Sched.roomLabel(L, i, lang); if (rm.isNotEmpty()) Text(rm, color = fg2, fontSize = 9.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
         }
         repeat(4 - items.size) { Spacer(Modifier.weight(1f)) }

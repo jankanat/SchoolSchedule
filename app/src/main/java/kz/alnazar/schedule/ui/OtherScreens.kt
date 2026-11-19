@@ -56,60 +56,9 @@ fun Modifier.wall(): Modifier = this.drawBehind {
 }
 
 @Composable
-private fun FakeApp(emoji: String) {
+internal fun FakeApp(emoji: String) {
     Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = .22f)), contentAlignment = Alignment.Center) {
         Text(emoji, fontSize = 26.sp)
-    }
-}
-
-@Composable
-fun WidgetsScreen(st: AppState, clock: Long) {
-    val ctx = LocalContext.current
-    val lang = st.appLang
-    val n = remember(st, clock) { Sched.now(st) }
-    val wl = st.widgetLang
-    fun upd(f: (WidgetCfg) -> WidgetCfg) = Store.update(ctx) { it.copy(widget = f(it.widget)) }
-    Page {
-        item { ScreenHead(Tr.t(lang, "tab_widgets"), Tr.t(lang, "w_sub")) }
-        item {
-            // сетка 4 × 7 клеток по 76dp с промежутком 8dp — как в прототипе
-            val u = 76; val gp = 8
-            fun at(c: Int, r: Int) = Modifier.offset(((c) * (u + gp)).dp, ((r) * (u + gp)).dp)
-            Box(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(28.dp)).wall().padding(vertical = 16.dp), contentAlignment = Alignment.TopCenter) {
-                Box(Modifier.size((4 * u + 3 * gp).dp, (7 * u + 6 * gp).dp)) {
-                    Box(at(0, 0)) { WidgetPreview("4x2", st, n, wl) }
-                    Box(at(0, 2)) { WidgetPreview("2x2", st, n, wl) }
-                    Box(at(2, 2)) { WidgetPreview("2x4", st, n, wl) }
-                    Box(at(0, 4)) { WidgetPreview("2x1", st, n, wl) }
-                    Box(at(0, 5)) { WidgetPreview("1x2", st, n, wl) }
-                    Box(at(1, 5).padding(12.dp)) { FakeApp("📷") }
-                    Box(at(1, 6).padding(12.dp)) { FakeApp("💬") }
-                }
-            }
-        }
-        item {
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                Sec(Tr.t(lang, "w_settings"))
-                Group {
-                    Column(Modifier.padding(14.dp)) {
-                        Text(Tr.t(lang, "onLesson"), color = T.tx, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
-                        Seg(listOf("current" to Tr.t(lang, "opt_current"), "next" to Tr.t(lang, "opt_next")), st.widget.onLesson) { v -> upd { it.copy(onLesson = v) } }
-                    }
-                    RowDivider()
-                    Column(Modifier.padding(14.dp)) {
-                        Text(Tr.t(lang, "onBreak"), color = T.tx, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 8.dp))
-                        Seg(listOf("next" to Tr.t(lang, "opt_next"), "prev" to Tr.t(lang, "opt_prev")), st.widget.onBreak) { v -> upd { it.copy(onBreak = v) } }
-                    }
-                    RowDivider(); TgRow(Tr.t(lang, "w_room"), st.widget.room) { v -> upd { it.copy(room = v) } }
-                    RowDivider(); TgRow(Tr.t(lang, "w_time"), st.widget.time) { v -> upd { it.copy(time = v) } }
-                    RowDivider(); TgRow(Tr.t(lang, "w_hw"), st.widget.hw) { v -> upd { it.copy(hw = v) } }
-                    RowDivider(); TgRow(Tr.t(lang, "idleNo"), st.widget.idleNoLessons) { v -> upd { it.copy(idleNoLessons = v) } }
-                    RowDivider(); TgRow(Tr.t(lang, "idleNext"), st.widget.idleNextDay) { v -> upd { it.copy(idleNextDay = v) } }
-                }
-                Sec(Tr.t(lang, "w_add"))
-                Card { Text(Tr.t(lang, "w_add_hint"), color = T.tx2, fontSize = 13.5.sp) }
-            }
-        }
     }
 }
 

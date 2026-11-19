@@ -62,6 +62,7 @@ internal data class WPal(
     val colBg: Color, val line: Color, val tileBw: Color, val bg: Int, val radius: Dp,
     val fill: Color? = null,   // своя тема: сплошная заливка вместо картинки-фона
     val ff: androidx.glance.text.FontFamily? = null,   // ближайший системный шрифт к выбранному в приложении
+    val id: String = "",   // стиль: у каждого ОС своя раскладка виджетов
 )
 
 /** Своя тема для виджета: форма от стиля, цвета — из настроек пользователя. */
@@ -79,13 +80,13 @@ private fun customPal(base: WPal, s: kz.alnazar.schedule.data.AppState): WPal {
 private fun pal(upper: Boolean, tileR: Float, acc: Color, soft: Color, bg: Int, r: Int, tx: Color = Color.White, tx2: Color = Color(0xFF9B9BA3)) =
     WPal(upper, tileR, tx, tx2, tx2.copy(alpha = .55f), acc, soft, Color(0x12FFFFFF), Color(0x1FFFFFFF), Color(0xFF2C2C2E), bg, r.dp)
 private val IOS = WPal(true, .3f, Color(0xFFFFFFFF), Color(0x99FFFFFF), Color(0x59FFFFFF), Color(0xFF0A84FF), Color(0x2B0A84FF),
-    Color(0x12FFFFFF), Color(0x1FFFFFFF), Color(0x42828296), R.drawable.glass_dark, 34.dp)
+    Color(0x12FFFFFF), Color(0x1FFFFFFF), Color(0x42828296), R.drawable.glass_dark, 34.dp, id = "ios26")
 private val PIXEL = WPal(false, .5f, Color(0xFFE6E0E9), Color(0xFFCAC4D0), Color(0x80CAC4D0), Color(0xFFD0BCFF), Color(0xFF4A4458),
-    Color(0xFF36343B), Color(0x29CAC4D0), Color(0xFF36343B), R.drawable.pixel_dark, 28.dp)
-private val IOS18 = pal(true, .24f, Color(0xFF0A84FF), Color(0x2B0A84FF), R.drawable.ios18_dark, 24)
-private val COLOR = pal(false, .5f, Color(0xFF35D07F), Color(0x2B35D07F), R.drawable.color_dark, 22)
-private val ORIGIN = pal(false, .34f, Color(0xFF7C93FF), Color(0x2B7C93FF), R.drawable.origin_dark, 28)
-private val ONEUI = pal(false, .36f, Color(0xFF4DA3FF), Color(0x2B4DA3FF), R.drawable.oneui_dark, 30)
+    Color(0xFF36343B), Color(0x29CAC4D0), Color(0xFF36343B), R.drawable.pixel_dark, 28.dp, id = "pixel")
+private val IOS18 = pal(true, .24f, Color(0xFF0A84FF), Color(0x2B0A84FF), R.drawable.ios18_dark, 24).copy(id = "ios18")
+private val COLOR = pal(false, .5f, Color(0xFF35D07F), Color(0x2B35D07F), R.drawable.color_dark, 22).copy(id = "color")
+private val ORIGIN = pal(false, .34f, Color(0xFF7C93FF), Color(0x2B7C93FF), R.drawable.origin_dark, 28).copy(id = "origin")
+private val ONEUI = pal(false, .36f, Color(0xFF4DA3FF), Color(0x2B4DA3FF), R.drawable.oneui_dark, 30).copy(id = "oneui")
 private fun palFor(style: String) = when (style) {
     "pixel" -> PIXEL; "ios18" -> IOS18; "color" -> COLOR; "origin" -> ORIGIN; "oneui" -> ONEUI; else -> IOS
 }
@@ -95,6 +96,12 @@ private val TX: ColorProvider @Composable get() = ColorProvider(LocalWP.current.
 private val TX2: ColorProvider @Composable get() = ColorProvider(LocalWP.current.tx2)
 private val TX3: ColorProvider @Composable get() = ColorProvider(LocalWP.current.tx3)
 private val ACC: ColorProvider @Composable get() = ColorProvider(LocalWP.current.acc)
+/** Цвет подписи-метки: у iOS она красная, как в виджетах Календаря. */
+private val LBC: ColorProvider @Composable get() = ColorProvider(if (LocalWP.current.id.startsWith("ios")) Color(0xFFFF6961) else LocalWP.current.acc)
+/** Тёмный текст на акцентной заливке. */
+private val INK: ColorProvider @Composable get() = ColorProvider(androidx.compose.ui.graphics.lerp(LocalWP.current.acc, Color.Black, .8f))
+private val sid: String @Composable get() = LocalWP.current.id
+private fun subjColor(s: AppState, x: Slot, lang: String) = Color(Sched.subj(s, x.lesson.subj, lang).color)
 
 @Composable
 private fun st(size: TextUnit, color: ColorProvider = TX, bold: Boolean = false) =
@@ -191,7 +198,7 @@ private fun name(s: AppState, slot: Slot, lang: String) = Sched.subj(s, slot.les
 @Composable
 private fun Lb(a: String, b: String = "", size: TextUnit = 10.sp, center: Boolean = false) {
     Row(GlanceModifier.fillMaxWidth(), horizontalAlignment = if (center) Alignment.CenterHorizontally else Alignment.Start, verticalAlignment = Alignment.Bottom) {
-        Text(if (LocalWP.current.upper) a.uppercase() else a, style = st(size, ACC, bold = true), maxLines = 2, modifier = if (b.isNotEmpty()) GlanceModifier.defaultWeight() else GlanceModifier)
+        Text(if (LocalWP.current.upper) a.uppercase() else a, style = st(size, LBC, bold = true), maxLines = 2, modifier = if (b.isNotEmpty()) GlanceModifier.defaultWeight() else GlanceModifier)
         if (b.isNotEmpty()) Text(b, style = st(size, TX2), maxLines = 1)
     }
 }
@@ -239,13 +246,59 @@ class W22 : LessonWidget() {
                 return@Column
             }
             if (n.phase == Phase.LESSON) {
-                Lb(Tr.t(lang, "now"), tillCur(n, lang))
-                Row(GlanceModifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    TileS(s, L[n.cur], lang, 28.dp)
-                    Spacer(GlanceModifier.width(9.dp))
-                    Column {
-                        Text(name(s, L[n.cur], lang), style = st(15.sp, bold = true), maxLines = 2)
+                val sl = L[n.cur]
+                val frac = ((n.minute - sl.start).toFloat() / (sl.end - sl.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                when (sid) {
+                    "pixel" -> Column(GlanceModifier.fillMaxWidth().padding(top = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(GlanceModifier.size(58.dp).background(LocalWP.current.acc).cornerRadius(29.dp), contentAlignment = Alignment.Center) {
+                            Text(Tr.hm(sl.end), style = st(15.sp, INK, bold = true))
+                        }
+                        Text(name(s, sl, lang), style = st(14.sp, bold = true), maxLines = 1, modifier = GlanceModifier.padding(top = 5.dp))
                         Mt(Sched.meta(L, n.cur, lang, cfg.time, cfg.room))
+                    }
+                    "ios26", "ios18" -> {
+                        Lb(Tr.t(lang, "now"), if (sl.lesson.room.isNotBlank() && cfg.room) Sched.roomLabel(L, n.cur, lang) else "")
+                        Text(name(s, sl, lang), style = st(18.sp, bold = true), maxLines = 2, modifier = GlanceModifier.padding(top = 3.dp))
+                        Spacer(GlanceModifier.defaultWeight())
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(Tr.hm(sl.end), style = st(30.sp), maxLines = 1)
+                            Text("  " + Tr.t(lang, "till", "").trim(), style = st(11.sp, TX2), maxLines = 1)
+                        }
+                        androidx.glance.appwidget.LinearProgressIndicator(frac, GlanceModifier.fillMaxWidth().padding(top = 4.dp), color = LBC, backgroundColor = ColorProvider(LocalWP.current.line))
+                    }
+                    "origin" -> {
+                        Lb(Tr.t(lang, "now"))
+                        Text(Tr.hm(sl.end), style = st(42.sp), maxLines = 1)
+                        Spacer(GlanceModifier.defaultWeight())
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TileS(s, sl, lang, 26.dp); Spacer(GlanceModifier.width(8.dp))
+                            Column { Text(name(s, sl, lang), style = st(13.sp, bold = true), maxLines = 2); Mt(Sched.meta(L, n.cur, lang, false, cfg.room)) }
+                        }
+                    }
+                    "oneui" -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(GlanceModifier.size(12.dp).background(LocalWP.current.acc).cornerRadius(4.dp)) {}
+                            Spacer(GlanceModifier.width(6.dp)); Text(Tr.t(lang, "now"), style = st(11.5.sp, ACC, bold = true))
+                        }
+                        Text(name(s, sl, lang), style = st(17.sp, bold = true), maxLines = 2, modifier = GlanceModifier.padding(top = 6.dp))
+                        Spacer(GlanceModifier.defaultWeight())
+                        Row(GlanceModifier.fillMaxWidth()) {
+                            Text(Tr.hm(sl.start), style = st(10.sp, TX2), modifier = GlanceModifier.defaultWeight()); Text(Tr.hm(sl.end), style = st(10.sp, TX2))
+                        }
+                        androidx.glance.appwidget.LinearProgressIndicator(frac, GlanceModifier.fillMaxWidth().padding(top = 3.dp), color = ACC, backgroundColor = ColorProvider(LocalWP.current.line))
+                    }
+                    else -> {
+                        Lb(Tr.t(lang, "now"), tillCur(n, lang))
+                        Row(GlanceModifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            TileS(s, sl, lang, 32.dp)
+                            Spacer(GlanceModifier.width(9.dp))
+                            Column {
+                                Text(name(s, sl, lang), style = st(15.sp, bold = true), maxLines = 2)
+                                Mt(Sched.meta(L, n.cur, lang, cfg.time, cfg.room))
+                            }
+                        }
+                        Spacer(GlanceModifier.defaultWeight())
+                        androidx.glance.appwidget.LinearProgressIndicator(frac, GlanceModifier.fillMaxWidth().padding(bottom = 4.dp), color = ACC, backgroundColor = ColorProvider(LocalWP.current.line))
                     }
                 }
             } else {
@@ -259,6 +312,7 @@ class W22 : LessonWidget() {
                     }
                 }
             }
+            if (sid != "pixel" && sid != "origin") {
             Spacer(GlanceModifier.defaultWeight())
             Box(GlanceModifier.fillMaxWidth().height(1.dp).background(LINE)) {}
             Spacer(GlanceModifier.height(2.dp))
@@ -272,6 +326,7 @@ class W22 : LessonWidget() {
                 }
                 Mt(Sched.meta(L, n.next, lang, cfg.time, cfg.room))
             } else Mt(Tr.t(lang, "lastLesson"))
+            }
         }
     }
 }
@@ -406,23 +461,69 @@ class W24 : LessonWidget() {
     }
 }
 
-/** Строка списка: 0 — обычная, 1 — текущая (подсветка), 2 — прошедшая (бледная). */
+/** Строка списка: 0 — обычная, 1 — текущая (подсветка), 2 — прошедшая (бледная). У каждого стиля — своя. */
 @Composable
 private fun Lr(s: AppState, L: List<Slot>, i: Int, lang: String, state: Int) {
     val x = L[i]
     val tx = if (state == 2) TX3 else TX
     val tx2 = if (state == 2) TX3 else TX2
-    var m = GlanceModifier.fillMaxWidth().padding(start = 4.dp, end = 6.dp, top = 2.dp, bottom = 2.dp)
-    if (state == 1) m = m.background(SOFT).cornerRadius(11.dp)
-    Row(m, verticalAlignment = Alignment.CenterVertically) {
-        Text("${x.idx + 1}", style = st(10.sp, tx2))
-        Spacer(GlanceModifier.width(7.dp))
-        TileS(s, x, lang, 24.dp)
-        Spacer(GlanceModifier.width(7.dp))
-        Column(GlanceModifier.defaultWeight()) {
-            Text(name(s, x, lang), style = st(12.5.sp, tx, bold = true), maxLines = 1)
-            val meta = Sched.meta(L, i, lang, s.widget.time, s.widget.room, startOnly = true)
-            if (meta.isNotEmpty()) Text(meta, style = st(9.5.sp, tx2), maxLines = 1)
+    val meta = Sched.meta(L, i, lang, s.widget.time, s.widget.room, startOnly = true)
+    when (sid) {
+        "ios26", "ios18" -> Row(GlanceModifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(GlanceModifier.width(3.dp).height(26.dp).background(subjColor(s, x, lang).copy(alpha = if (state == 2) .35f else 1f)).cornerRadius(2.dp)) {}
+            Spacer(GlanceModifier.width(8.dp))
+            Column(GlanceModifier.defaultWeight()) {
+                Text(name(s, x, lang), style = st(12.5.sp, tx, bold = state == 1), maxLines = 1)
+                if (meta.isNotEmpty()) Text(meta, style = st(9.5.sp, tx2), maxLines = 1)
+            }
+        }
+        "pixel" -> {
+            var m = GlanceModifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp).cornerRadius(if (state == 1) 16.dp else 8.dp)
+            m = m.background(if (state == 1) LocalWP.current.acc else LocalWP.current.colBg)
+            Row(GlanceModifier.fillMaxWidth().padding(bottom = 2.dp)) {
+                Row(m, verticalAlignment = Alignment.CenterVertically) {
+                    TileS(s, x, lang, 22.dp); Spacer(GlanceModifier.width(8.dp))
+                    Column(GlanceModifier.defaultWeight()) {
+                        Text(name(s, x, lang), style = st(12.5.sp, if (state == 1) INK else tx, bold = true), maxLines = 1)
+                        if (meta.isNotEmpty()) Text(meta, style = st(9.5.sp, if (state == 1) INK else tx2), maxLines = 1)
+                    }
+                }
+            }
+        }
+        "origin" -> Column(GlanceModifier.fillMaxWidth()) {
+            if (i > 0) Box(GlanceModifier.fillMaxWidth().height(1.dp).background(LINE)) {}
+            Row(GlanceModifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("${x.idx + 1}", style = st(11.sp, if (state == 1) ACC else tx2, bold = true), modifier = GlanceModifier.width(14.dp))
+                TileS(s, x, lang, 24.dp); Spacer(GlanceModifier.width(8.dp))
+                Column(GlanceModifier.defaultWeight()) {
+                    Text(name(s, x, lang), style = st(12.5.sp, tx, bold = true), maxLines = 1)
+                    Text(Tr.hm(x.start), style = st(9.5.sp, if (state == 1) ACC else tx2), maxLines = 1)
+                }
+            }
+        }
+        "oneui" -> Row(GlanceModifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(Tr.hm(x.start), style = st(10.5.sp, if (state == 1) ACC else tx2, bold = state == 1), modifier = GlanceModifier.width(38.dp))
+            Box(GlanceModifier.width(3.dp).height(26.dp).background(subjColor(s, x, lang).copy(alpha = if (state == 2) .35f else 1f)).cornerRadius(2.dp)) {}
+            Spacer(GlanceModifier.width(8.dp))
+            Column(GlanceModifier.defaultWeight()) {
+                Text(name(s, x, lang), style = st(12.5.sp, tx, bold = true), maxLines = 1)
+                val rm = Sched.roomLabel(L, i, lang)
+                if (s.widget.room && rm.isNotEmpty()) Text(rm, style = st(9.5.sp, tx2), maxLines = 1)
+            }
+        }
+        else -> {
+            var m = GlanceModifier.fillMaxWidth().padding(start = 4.dp, end = 6.dp, top = 2.dp, bottom = 2.dp)
+            if (state == 1) m = m.background(SOFT).cornerRadius(11.dp)
+            Row(m, verticalAlignment = Alignment.CenterVertically) {
+                Text("${x.idx + 1}", style = st(10.sp, tx2))
+                Spacer(GlanceModifier.width(7.dp))
+                TileS(s, x, lang, 24.dp)
+                Spacer(GlanceModifier.width(7.dp))
+                Column(GlanceModifier.defaultWeight()) {
+                    Text(name(s, x, lang), style = st(12.5.sp, tx, bold = true), maxLines = 1)
+                    if (meta.isNotEmpty()) Text(meta, style = st(9.5.sp, tx2), maxLines = 1)
+                }
+            }
         }
     }
 }
@@ -453,19 +554,33 @@ private fun Cols(s: AppState, L: List<Slot>, start: Int, cur: Int, lang: String)
     Row(GlanceModifier.fillMaxSize()) {
         val items = L.drop(start).take(4)
         for (k in 0 until 4) {
-            if (k > 0) Spacer(GlanceModifier.width(7.dp))
+            if (k > 0) Spacer(GlanceModifier.width(if (sid == "pixel") 4.dp else 7.dp))
             val x = items.getOrNull(k)
             if (x == null) { Spacer(GlanceModifier.defaultWeight()); continue }
             val i = start + k
-            Column(
-                GlanceModifier.defaultWeight().fillMaxHeight().background(if (i == cur) SOFT else COLBG).cornerRadius(14.dp)
-                    .padding(horizontal = 6.dp, vertical = 7.dp),
-            ) {
-                TileS(s, x, lang, 26.dp)
-                Spacer(GlanceModifier.height(4.dp))
-                Text(name(s, x, lang), style = st(11.sp, bold = true), maxLines = 2)
-                if (s.widget.time) Mt(Tr.hm(x.start), 9.5.sp)
-                if (s.widget.room) Mt(Sched.roomLabel(L, i, lang), 9.5.sp)
+            val on = i == cur
+            val bg = when {
+                sid == "pixel" -> if (on) LocalWP.current.acc else LocalWP.current.colBg
+                on -> LocalWP.current.soft
+                else -> LocalWP.current.colBg
+            }
+            val rad = when (sid) { "pixel" -> if (on) 20.dp else 10.dp; "origin" -> 18.dp; "oneui" -> 16.dp; else -> 14.dp }
+            val fg = if (sid == "pixel" && on) INK else TX
+            val fg2 = if (sid == "pixel" && on) INK else TX2
+            Column(GlanceModifier.defaultWeight().fillMaxHeight().background(bg).cornerRadius(rad).padding(horizontal = 6.dp, vertical = 7.dp)) {
+                when (sid) {
+                    "ios26", "ios18" -> {
+                        Box(GlanceModifier.fillMaxWidth().height(3.dp).background(subjColor(s, x, lang)).cornerRadius(2.dp)) {}
+                        Spacer(GlanceModifier.height(6.dp))
+                        Text(Tr.hm(x.start), style = st(10.sp, LBC, bold = true), maxLines = 1)
+                    }
+                    "origin" -> Text(Tr.hm(x.start), style = st(17.sp), maxLines = 1)
+                    "oneui" -> Text(Tr.hm(x.start), style = st(11.sp, if (on) ACC else TX2, bold = true), maxLines = 1)
+                    else -> { TileS(s, x, lang, 26.dp); Spacer(GlanceModifier.height(4.dp)) }
+                }
+                Spacer(GlanceModifier.height(2.dp))
+                Text(name(s, x, lang), style = st(11.sp, fg, bold = true), maxLines = 2)
+                if (s.widget.room) { val rm = Sched.roomLabel(L, i, lang); if (rm.isNotEmpty()) Text(rm, style = st(9.5.sp, fg2), maxLines = 1) }
             }
         }
     }
