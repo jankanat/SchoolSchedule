@@ -86,6 +86,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
     val press = remember { Animatable(1f) }
     val glowA = remember { Animatable(0f) }
     val drag = remember { Animatable(0f) }
+    val dragY = remember { Animatable(0f) }
     var touchX by remember { mutableStateOf(0f) }
     var hover by remember { mutableIntStateOf(-1) }
     // Какие боковые кнопки нужны на текущей вкладке: «+» — на Главной и Заданиях, настройки — на Главной и Виджетах.
@@ -118,6 +119,9 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         fun sR() = if (PlusAnchor.open) 0f else ((1f - absorb.value) * showR.value).coerceIn(0f, 1f)
         fun pillSX() = press.value * (1f + abs(drag.value) / pillWpx * .06f)
         fun pillTx() = rubberX(drag.value, rubberPx)
+        val rubberYpx = with(den) { 16.dp.toPx() }; val pillHpx = with(den) { pillH.toPx() }
+        fun pillSY() = press.value * (1f + abs(rubberX(dragY.value, rubberYpx)) / pillHpx * 1.3f)
+        fun pillTy() = rubberX(dragY.value, rubberYpx)
         val lOn by remember { androidx.compose.runtime.derivedStateOf { ((1f - absorb.value) * showL.value) > .6f } }
         val rOn by remember { androidx.compose.runtime.derivedStateOf { !PlusAnchor.open && ((1f - absorb.value) * showR.value) > .6f } }
         val acc = t.acc
@@ -127,9 +131,9 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         Canvas(Modifier.fillMaxSize().graphicsLayer {
             renderEffect = gooEffect(.20f, .20f, .22f, 9.dp.toPx())
             alpha = .62f
-        }) { drawBlobs(this, circ, gap, pillW, pillH, dxL(), sL(), pillSX(), press.value, pillTx(), onlyAccent = false) }
+        }) { drawBlobs(this, circ, gap, pillW, pillH, dxL(), sL(), pillSX(), pillSY(), pillTx(), onlyAccent = false, pillTy = pillTy()) }
         Canvas(Modifier.fillMaxSize().graphicsLayer { renderEffect = gooEffect(acc.red, acc.green, acc.blue, 9.dp.toPx()) }) {
-            drawBlobs(this, circ, gap, pillW, pillH, dxR(), sR(), pillSX(), press.value, pillTx(), onlyAccent = true)
+            drawBlobs(this, circ, gap, pillW, pillH, dxR(), sR(), pillSX(), pillSY(), pillTx(), onlyAccent = true, pillTy = pillTy())
         }
 
         // ---- левая кнопка: настройки (с бликами по краю, как у капсулы) ----
@@ -158,7 +162,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
 
         // ---- капсула ----
         Box(Modifier.offset(x = circ + gap).width(pillW).height(pillH)
-            .graphicsLayer { scaleX = pillSX(); scaleY = press.value; translationX = pillTx() }
+            .graphicsLayer { scaleX = pillSX(); scaleY = pillSY(); translationX = pillTx(); translationY = pillTy() }
             .clip(pillShape).backdropBlur(backdrop, 26.dp, Color.Transparent, pillShape)
             .border(1.dp, Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color.Transparent, Color(0x0DFFFFFF))), pillShape)
             .drawWithContent {
@@ -187,8 +191,8 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
                         if (ch.changedToUpIgnoreConsumed()) { ch.consume(); break }
                         touchX = ch.position.x
                         val h2 = idxAt(touchX)
-                        if (h2 != hover) { hover = h2; hf.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
-                        scope.launch { drag.snapTo(ch.position.x - down.position.x) }
+                        if (h2 != hover) hover = h2
+                        scope.launch { drag.snapTo(ch.position.x - down.position.x); dragY.snapTo(ch.position.y - down.position.y) }
                         ch.consume()
                     }
                     val target = hover
@@ -197,6 +201,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
                     scope.launch { press.animateTo(1f, spring(.45f, 380f)) }
                     scope.launch { glowA.animateTo(0f, tween(380)) }
                     scope.launch { drag.animateTo(0f, spring(.55f, 380f)) }
+                    scope.launch { dragY.animateTo(0f, spring(.5f, 380f)) }
                 }
             },
         ) {
@@ -238,7 +243,7 @@ private fun drawBlobs(
     ds: androidx.compose.ui.graphics.drawscope.DrawScope,
     circ: androidx.compose.ui.unit.Dp, gap: androidx.compose.ui.unit.Dp,
     pillW: androidx.compose.ui.unit.Dp, pillH: androidx.compose.ui.unit.Dp,
-    dx: Float, s: Float, pillScaleX: Float, pillScaleY: Float, pillTx: Float, onlyAccent: Boolean,
+    dx: Float, s: Float, pillScaleX: Float, pillScaleY: Float, pillTx: Float, onlyAccent: Boolean, pillTy: Float = 0f,
 ) = with(ds) {
     val c = circ.toPx(); val g = gap.toPx(); val pw = pillW.toPx(); val ph = pillH.toPx()
     val cy = size.height / 2
@@ -246,7 +251,7 @@ private fun drawBlobs(
         // капсула
         val w = pw * pillScaleX; val h = ph * pillScaleY
         val x0 = c + g + (pw - w) / 2 + pillTx
-        drawRoundRect(Color.Black, Offset(x0, (size.height - h) / 2), Size(w, h), CornerRadius(h / 2))
+        drawRoundRect(Color.Black, Offset(x0, (size.height - h) / 2 + pillTy), Size(w, h), CornerRadius(h / 2))
         // левый кружок
         if (s > .02f) drawCircle(Color.Black, c / 2 * s, Offset(c / 2 + dx, cy))
     } else {
