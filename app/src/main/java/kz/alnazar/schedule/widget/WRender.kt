@@ -447,10 +447,13 @@ private class R(
         else rr(bx, by, bwid, bh, bh / 2, a(Color.WHITE, .12f))
         val meta = metaOf(x)
         val mh = th(meta, bwid, f(12f), 600)
-        val my = by - f(10f) - mh
-        text(meta, bx, my, bwid, f(12f), P.tx2, 600)
-        val titleH = th(name(x), bwid, f(19f), 800, 2)
-        text(name(x), bx, my - f(4f) - titleH, bwid, f(19f), P.tx, 800, 2)
+        val ts = f(22f)
+        val titleH = th(name(x), bwid, ts, 800, 2)
+        val blockH = titleH + f(4f) + mh
+        val zt = ph + f(44f) + f(4f); val zb = by - f(10f)
+        val y0 = zt + ((zb - zt - blockH) / 2).coerceAtLeast(0f)
+        text(name(x), bx, y0, bwid, ts, P.tx, 800, 2)
+        text(meta, bx, y0 + titleH + f(4f), bwid, f(12f), P.tx2, 600)
     }
 
     fun color42() {
@@ -511,11 +514,14 @@ private class R(
         val pv = f(8f); val w = W - pv * 2
         var y = f(12f)
         y += text(lab12(x), pv, y, w, f(12f), P.acc, 700, 1, CTR) + f(8f)
-        val isz = min(f(40f), W - f(20f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
-        text(name(x), pv, y, w, f(13f), P.tx, 800, 2, CTR)
         val r = room(L, L.indexOf(x))
         val t1 = if (cfg.time) hm(x.start) else ""
         val h2 = th(r, w, f(11.5f), 600); val h1 = th(t1, w, f(11.5f), 600)
+        val isz = min(f(44f), W - f(20f)); val ns = f(14f); val nh = th(name(x), w, ns, 800, 2)
+        val zb = H - f(12f) - h2 - h1 - f(6f); val bl = isz + f(8f) + nh
+        val y1 = y + ((zb - y - bl) / 2).coerceAtLeast(0f)
+        icon(x, (W - isz) / 2, y1, isz)
+        text(name(x), pv, y1 + isz + f(8f), w, ns, P.tx, 800, 2, CTR)
         text(r, pv, H - f(12f) - h2, w, f(11.5f), P.tx2, 600, 1, CTR)
         text(t1, pv, H - f(12f) - h2 - h1, w, f(11.5f), P.tx2, 600, 1, CTR)
     }
@@ -556,7 +562,6 @@ private class R(
         val head = up(join(label, roomShort(L, i)))
         var y = pd
         y += text(head, pd, y, w, f(11f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f) + f(4f)
-        text(name(x), pd, y, w, f(20f), P.tx, 700, 2)
         val nxt = L.getOrNull(i + 1)
         val nextT = if (nxt != null) Tr.t(lang, "next") + ": " + name(nxt) else ""
         var by = H - pd
@@ -564,6 +569,11 @@ private class R(
         val mins = minsOf(x)
         val ringR = f(18f)
         val sz = f(34f)
+        run {
+            val ts = f(24f); val h = th(name(x), w, ts, 700, 2)
+            val zb = by - sz * .78f - f(8f)
+            text(name(x), pd, y + ((zb - y - h) / 2).coerceAtLeast(0f), w, ts, P.tx, 700, 2)
+        }
         if (mins > 0 || isCur) {
             val bw = base("$mins", pd, by - f(2f), sz, P.tx, 600)
             base(" $mn", pd + bw, by - f(2f), f(12f), P.tx2, 500)
@@ -716,10 +726,13 @@ private class R(
         val ph = f(8f); val w = W - ph * 2
         var y = f(18f)
         y += text(lab12(x), ph, y, w, f(12f), P.accT, 600, 1, CTR, .02f) + f(8f)
-        val isz = min(f(36f), W - f(24f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
-        text(name(x), ph, y, w, f(12.5f), P.tx, 600, 2, CTR)
-        val t = hm(x.start); val h = th(t, w, f(12f))
-        text(t, ph, H - f(18f) - h, w, f(12f), P.tx2, 400, 1, CTR)
+        val isz = min(f(40f), W - f(24f)); val ns = f(14f); val nh = th(name(x), w, ns, 600, 2)
+        val t = hm(x.start); val h = th(t, w, f(13f))
+        val zb = H - f(18f) - h - f(6f); val bl = isz + f(8f) + nh
+        val y1 = y + ((zb - y - bl) / 2).coerceAtLeast(0f)
+        icon(x, (W - isz) / 2, y1, isz)
+        text(name(x), ph, y1 + isz + f(8f), w, ns, P.tx, 600, 2, CTR)
+        text(t, ph, H - f(18f) - h, w, f(13f), P.tx2, 400, 1, CTR)
     }
 
     fun pixel21() {
@@ -875,9 +888,13 @@ private class R(
         val isz = f(30f); icon(x, pd, y, isz)
         text(label, pd + isz + f(8f), y + (isz - f(16f)) / 2, w - isz, f(13f), P.accT, 700)
         y += isz + f(4f)
-        text(name(x), pd, y, w, f(18f), P.tx, 700, 2)
         val bh = f(6f); val by = H - pd - bh
         val t1 = hm(x.start); val t2 = hm(x.end); val th1 = th(t1, w, f(12f))
+        run {
+            val ts = f(21f); val h = th(name(x), w, ts, 700, 2)
+            val zb = by - f(4f) - th1 - f(6f)
+            text(name(x), pd, y + ((zb - y - h) / 2).coerceAtLeast(0f), w, ts, P.tx, 700, 2)
+        }
         if (isCur) bar(pd, by, w, bh, frac(x), P.acc, a(Color.WHITE, .15f)) else rr(pd, by, w, bh, bh / 2, a(Color.WHITE, .15f))
         text(t1, pd, by - f(4f) - th1, w, f(12f), P.tx2)
         text(t2, pd, by - f(4f) - th1, w, f(12f), P.tx2, 400, 1, OPP)
@@ -937,10 +954,13 @@ private class R(
         val ph = f(8f); val w = W - ph * 2
         var y = f(14f)
         y += text(lab12(x), ph, y, w, f(12f), P.accT, 700, 1, CTR) + f(12f)
-        val isz = min(f(40f), W - f(24f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
-        text(name(x), ph, y, w, f(13f), P.tx, 700, 2, CTR)
-        val t = hm(x.start); val h = th(t, w, f(16f), 700)
-        text(t, ph, H - f(14f) - h, w, f(16f), P.accT, 700, 1, CTR)
+        val isz = min(f(44f), W - f(24f)); val ns = f(14f); val nh = th(name(x), w, ns, 700, 2)
+        val t = hm(x.start); val h = th(t, w, f(17f), 700)
+        val zb = H - f(14f) - h - f(6f); val bl = isz + f(8f) + nh
+        val y1 = y + ((zb - y - bl) / 2).coerceAtLeast(0f)
+        icon(x, (W - isz) / 2, y1, isz)
+        text(name(x), ph, y1 + isz + f(8f), w, ns, P.tx, 700, 2, CTR)
+        text(t, ph, H - f(14f) - h, w, f(17f), P.accT, 700, 1, CTR)
     }
 
     fun oneui21() {
