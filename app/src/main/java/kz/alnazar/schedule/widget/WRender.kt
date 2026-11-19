@@ -238,7 +238,8 @@ private class R(
     /** базовая линия, чтобы верх цифр был на высоте y */
     fun fit(s: String, w: Float, maxH: Float, hi: Float, lo: Float, wt: Int, lines: Int): Float {
         var fs = hi; val st = f(.5f)
-        while (fs > lo && th(s, w, fs, wt, lines) > maxH) fs -= st
+        val words = s.split(' ').filter { it.isNotEmpty() }
+        while (fs > lo && (th(s, w, fs, wt, lines) > maxH || words.any { bigW(it, fs, wt) > w })) fs -= st
         return fs.coerceAtLeast(lo)
     }
     fun topBase(y: Float, size: Float) = y + size * .72f
@@ -628,11 +629,12 @@ private class R(
         val pv = f(12f); val ph = f(10f); val w = W - ph * 2
         var y = pv
         y += text(up(lab12(x)), ph, y, w, f(11f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f) + f(4f)
-        text(hm(x.start), ph, y, w, f(24f), P.tx, 600)
+        y += text(hm(x.start), ph, y, w, f(28f), P.tx, 600)
         val r = room(L, L.indexOf(x))
-        val h2 = th(r, w, f(12f), 500); val h1 = th(name(x), w, f(13f), 700, 2)
-        text(r, ph, H - pv - h2, w, f(12f), P.tx2, 500)
-        text(name(x), ph, H - pv - h2 - h1 - f(1f), w, f(13f), P.tx, 700, 2)
+        val h2 = th(r, w, f(13f), 500)
+        val ns = fit(name(x), w, (H - pv - h2 - y) * .55f, f(22f), f(13f), 700, 2); val h1 = th(name(x), w, ns, 700, 2)
+        text(r, ph, H - pv - h2, w, f(13f), P.tx2, 500)
+        text(name(x), ph, H - pv - h2 - h1 - f(2f), w, ns, P.tx, 700, 2)
     }
 
     fun ios21() {
@@ -856,10 +858,12 @@ private class R(
         val x = slot12() ?: return
         val pd = f(8f); val w = W - pd * 2
         var y = f(14f)
-        val isz = min(f(44f), W - f(24f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
-        y += text(lab12(x), pd, y, w, f(12f), P.accT, 600, 1, CTR) + f(1f)
-        text(name(x), pd, y, w, f(13f), P.tx, 700, 2, CTR)
-        val t = hm(x.start); val ts = f(26f).coerceAtMost(W * .31f)
+        val isz = min(f(52f), W - f(20f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
+        y += text(lab12(x), pd, y, w, f(13.5f), P.accT, 600, 1, CTR) + f(2f)
+        val t = hm(x.start); val ts = f(30f).coerceAtMost(W * .34f)
+        val zb = H - f(14f) - ts * .8f - f(6f)
+        val ns = fit(name(x), w, zb - y, f(20f), f(13f), 700, 2)
+        text(name(x), pd, y + ((zb - y - th(name(x), w, ns, 700, 2)) / 2).coerceAtLeast(0f), w, ns, P.tx, 700, 2, CTR)
         base(t, W / 2 - bigW(t, ts, 200, -.03f) / 2, H - f(14f), ts, P.tx, 200, -.03f)
     }
 
