@@ -334,33 +334,56 @@ private class R(
         p.reset(); p.isAntiAlias = true; p.color = color; c.drawPath(path, p)
     }
 
-    /* ---- пустое состояние (нет уроков и показывать нечего) ---- */
+    /* ---- пустое состояние (нет уроков сегодня) ---- */
     fun idleView() {
         val I = Sched.idle(n, lang)
-        val cx = W / 2; val w = W - f(20f)
-        val em = f(if (size == "2x1" || size == "1x2") 26f else 36f)
-        val q = tp(em * .8f, Color.WHITE, 400)
+        if (size == "2x2" && showNextDay) { idleList(I); return }
         val title = if (cfg.idleNoLessons) I.title else I.day
-        val sub = if (cfg.idleNoLessons) I.day else ""
+        val subT = if (cfg.idleNoLessons) I.day else ""
         if (size == "2x1" || size == "4x2") {
-            val ex = f(16f)
-            c.drawText(I.em, ex, H / 2 + em * .3f, q)
-            val tx = ex + em + f(12f)
-            val h1 = th(title, W - tx - f(12f), f(15f), 700)
-            val h2 = if (sub.isNotEmpty()) th(sub, W - tx - f(12f), f(12f)) else 0f
+            val ex = f(16f); val w2 = W - ex * 2
+            val h1 = th(title, w2, f(15f), 700); val h2 = th(subT, w2, f(12f))
             var y = (H - h1 - h2) / 2
-            y += text(title, tx, y, W - tx - f(12f), f(15f), P.tx, 700)
-            text(sub, tx, y, W - tx - f(12f), f(12f), P.tx2)
+            y += text(title, ex, y, w2, f(15f), P.tx, 700)
+            text(subT, ex, y, w2, f(12f), P.tx2)
             return
         }
-        val h1 = th(title, w, f(if (size == "1x2") 12f else 15f), 700, 2)
-        val h2 = if (sub.isNotEmpty()) th(sub, w, f(11f), 400, 2) else 0f
-        val total = em + f(8f) + h1 + h2 + f(2f)
-        var y = (H - total) / 2
-        c.drawText(I.em, cx - q.measureText(I.em) / 2, y + em * .8f, q)
-        y += em + f(8f)
-        y += text(title, cx - w / 2, y, w, f(if (size == "1x2") 12f else 15f), P.tx, 700, 2, CTR)
-        text(sub, cx - w / 2, y + f(2f), w, f(11f), P.tx2, 400, 2, CTR)
+        val w2 = W - f(20f); val cx = W / 2
+        val fs = if (size == "1x2") f(12f) else f(15f)
+        val h1 = th(title, w2, fs, 700, 2); val h2 = th(subT, w2, f(11f), 400, 2)
+        var y = (H - h1 - h2 - f(2f)) / 2
+        y += text(title, cx - w2 / 2, y, w2, fs, P.tx, 700, 2, CTR)
+        text(subT, cx - w2 / 2, y + f(2f), w2, f(11f), P.tx2, 400, 2, CTR)
+    }
+
+    /** 2×2 без уроков сегодня: заголовок и все уроки следующего учебного дня. */
+    fun idleList(I: Sched.IdleInfo) {
+        val pd = f(14f); val w2 = W - pd * 2
+        val head = if (cfg.idleNoLessons) join(I.title, I.day) else I.day
+        val hh = text(if (P.kind == "ios") up(head) else head, pd, pd, w2, f(12f), P.accT, 700, 2,
+            Layout.Alignment.ALIGN_NORMAL, if (P.kind == "ios") .02f else 0f)
+        val top = pd + hh + f(8f)
+        val rowH = f(24f)
+        val avail = ((H - top - pd) / rowH).toInt().coerceAtLeast(1)
+        val items = if (nd.size <= avail) nd else nd.take(avail - 1)
+        val more = nd.size - items.size
+        items.forEachIndexed { i, sl ->
+            val cy = top + rowH * i + rowH / 2
+            circle(pd + f(3f), cy, f(3f), sub(sl).color.toInt())
+            val tx = pd + f(12f)
+            base(hm(sl.start), tx, midBase(cy, f(12f)), f(12f), P.tx2, 600)
+            val nx = tx + f(40f)
+            val r = roomShort(nd, nd.indexOf(sl))
+            val rw = if (r.isNotEmpty()) bigW(r, f(11f), 400) + f(6f) else 0f
+            val nw = W - pd - rw - nx
+            val h = th(name(sl), nw, f(13f), 700)
+            text(name(sl), nx, cy - h / 2, nw, f(13f), P.tx, 700)
+            if (r.isNotEmpty()) base(r, W - pd, midBase(cy, f(11f)), f(11f), P.tx2, 400, 0f, true)
+        }
+        if (more > 0) {
+            val cy = top + rowH * items.size + rowH / 2
+            base("+$more", pd + f(12f), midBase(cy, f(11f)), f(11f), P.tx2, 400)
+        }
     }
 
     /* ---- список уроков для больших виджетов ---- */
