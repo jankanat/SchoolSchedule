@@ -32,6 +32,7 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
+import androidx.glance.layout.ColumnScope
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxHeight
@@ -575,7 +576,7 @@ class W42 : LessonWidget() {
 }
 
 @Composable
-private fun Cols(s: AppState, L: List<Slot>, start: Int, cur: Int, lang: String) {
+private fun ColumnScope.Cols(s: AppState, L: List<Slot>, start: Int, cur: Int, lang: String) {
     Row(GlanceModifier.fillMaxWidth().defaultWeight()) {
         val items = L.drop(start).take(4)
         for (k in 0 until 4) {
