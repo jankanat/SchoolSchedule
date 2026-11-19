@@ -30,6 +30,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -55,7 +57,8 @@ private const val DUR = 250
 private val MOVE = CubicBezierEasing(0f, 0f, .12f, 1.07f)
 private val SCALE = CubicBezierEasing(0f, 0f, .78f, 1.06f)
 private val RADIUS = CubicBezierEasing(0f, 0f, .59f, 1f)
-private fun reversed(f: androidx.compose.animation.core.Easing) = androidx.compose.animation.core.Easing { 1f - f.transform(1f - it) }
+private const val CLOSE = 300
+private val SOFT = CubicBezierEasing(.2f, 0f, 0f, 1f)
 
 /** Где на экране находится кнопка «+», из которой «вырастает» окно. */
 object PlusAnchor {
@@ -82,24 +85,29 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
     val e = remember { Animatable(0f) }    // масштаб, содержимое
     val er = remember { Animatable(0f) }   // радиус скругления
     var mounted by remember { mutableStateOf(false) }
+    var host by remember { mutableStateOf(Offset.Zero) }
     LaunchedEffect(visible) {
         if (visible) {
-            PlusAnchor.open = true; mounted = true
+            PlusAnchor.open = true
+            host = Offset.Zero; mounted = true
+            // Форма тяжёлая: пока она собирается и измеряется, кадры длинные и половина анимации «съедалась». Стартуем, когда всё готово.
+            snapshotFlow { host }.first { it != Offset.Zero }
+            androidx.compose.runtime.withFrameNanos { }
+            androidx.compose.runtime.withFrameNanos { }
             launch { ep.animateTo(1f, tween(DUR, easing = MOVE)) }
             launch { er.animateTo(1f, tween(DUR, easing = RADIUS)) }
             e.animateTo(1f, tween(DUR, easing = SCALE))
         } else if (mounted) {
-            // закрытие — то же самое в обратную сторону
-            launch { ep.animateTo(0f, tween(DUR, easing = reversed(MOVE))) }
-            launch { er.animateTo(0f, tween(DUR, easing = reversed(RADIUS))) }
-            e.animateTo(0f, tween(DUR, easing = reversed(SCALE)))
+            // закрытие — мягкое сворачивание обратно в кнопку (плавное торможение, без резкого щелчка в конце)
+            launch { ep.animateTo(0f, tween(CLOSE, easing = SOFT)) }
+            launch { er.animateTo(0f, tween(CLOSE, easing = SOFT)) }
+            e.animateTo(0f, tween(CLOSE, easing = SOFT))
             mounted = false; PlusAnchor.open = false
         }
     }
     if (!mounted) return
     val den = LocalDensity.current
     val anchor = remember { PlusAnchor.rect }
-    var host by remember { mutableStateOf(Offset.Zero) }
     val startW = anchor?.width ?: with(den) { 64.dp.toPx() }
     val startH = anchor?.height ?: with(den) { 64.dp.toPx() }
     val ac = anchor?.center ?: Offset(host.x * 1.7f, host.y * 1.85f)
