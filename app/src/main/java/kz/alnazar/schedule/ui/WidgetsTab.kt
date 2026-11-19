@@ -98,8 +98,9 @@ private fun Modifier.wallFor(id: String): Modifier = when (id) {
 }
 
 @Composable
-fun WidgetsScreen(st: AppState, clock: Long) {
+fun WidgetsScreen(st: AppState, clock: Long, sub: Boolean = false) {
     val ctx = LocalContext.current
+    val ui = LocalUi.current
     val lang = st.appLang
     val n = remember(st, clock) { Sched.now(st) }
     val wl = st.widgetLang
@@ -108,10 +109,11 @@ fun WidgetsScreen(st: AppState, clock: Long) {
     val id = T.id
     val hint = Tr.t(lang, "w_add_hint")
 
-    Page {
+    Page(bottomNav = !sub) {
         // ----- заголовок -----
         item {
-            when {
+            if (sub) HdrBack(Tr.t(lang, "tab_widgets")) { ui.back() }
+            else when {
                 id == "oneui" -> Column(Modifier.fillMaxWidth().padding(top = 30.dp, bottom = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(Tr.t(lang, "tab_widgets"), color = T.tx, fontSize = 30.sp, fontWeight = FontWeight.Bold)
                     Text(Tr.t(lang, "w_sub"), color = T.tx2, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))

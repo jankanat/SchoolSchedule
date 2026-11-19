@@ -118,11 +118,11 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
     val endCr = with(den) { (if (t.nav == "m3") 28.dp else if (t.id == "oneui") 36.dp else 32.dp).toPx() }
     val c0 = when {
         t.nav == "m3" -> Color(0xFFFF8A80)
-        t.id == "color" -> Color(0xFF4DDB80)
+        t.id == "color" -> t.acc
         t.id == "ios26" -> Color(0x66302F3C)
         else -> Color(0x40FFFFFF)
     }
-    val plusTint = when { t.nav == "m3" -> Color(0xFF4A0E0B); t.id == "color" -> Color(0xFF05230F); else -> t.tx }
+    val plusTint = when { t.nav == "m3" -> Color(0xFF4A0E0B); t.id == "color" -> androidx.compose.ui.graphics.lerp(t.acc, Color.Black, .82f); else -> t.tx }
     val marginPx = with(den) { 24.dp.toPx() }
     val maxWpx = with(den) { 360.dp.toPx() }
 

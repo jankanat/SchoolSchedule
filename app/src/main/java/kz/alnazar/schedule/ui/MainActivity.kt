@@ -108,11 +108,11 @@ fun Modifier.screenBg(): Modifier {
 private fun Root() {
     val st by Store.state.collectAsStateWithLifecycle()
     val ui = remember { UiCtl() }
-    val pager = rememberPagerState { 4 }
+    val pager = rememberPagerState { 3 }
     val backdrop = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
     val req = tabReq.value
-    LaunchedEffect(req) { if (req != null) { ui.home(); ui.close(); pager.scrollToPage(req.coerceIn(0, 3)); tabReq.value = null } }
+    LaunchedEffect(req) { if (req != null) { ui.home(); ui.close(); pager.scrollToPage(req.coerceIn(0, 2)); tabReq.value = null } }
     // «сейчас» пересчитывается раз в 20 секунд — главный экран сам переключается по звонкам
     var clock by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { delay(20_000); clock = System.currentTimeMillis() } }
@@ -134,7 +134,7 @@ private fun Root() {
     val scaled = remember(d0, st.uiScale) { Density(d0.density * st.uiScale.coerceIn(.8f, 1.3f), d0.fontScale) }
     CompositionLocalProvider(LocalDensity provides scaled) {
     AppTheme(tok, st.font) {
-    val goTab: (Int) -> Unit = { i -> ui.home(); ui.close(); scope.launch { pager.animateScrollToPage(i.coerceIn(0, 3)) } }
+    val goTab: (Int) -> Unit = { i -> ui.home(); ui.close(); scope.launch { pager.animateScrollToPage(i.coerceIn(0, 2)) } }
     CompositionLocalProvider(LocalUi provides ui, LocalIcons provides IconPrefs(st.iconSet, st.iconTint), LocalBackdrop provides backdrop, LocalGoTab provides goTab) {
         Box(Modifier.fillMaxSize()) {
             // содержимое записывается в слой — по нему меню и шапка делают размытие
@@ -150,8 +150,7 @@ private fun Root() {
                         when (p) {
                             0 -> HomeScreen(st, clock)
                             1 -> ScheduleScreen(st)
-                            2 -> HwScreen(st)
-                            else -> WidgetsScreen(st, clock)
+                            else -> HwScreen(st)
                         }
                     }
                 }
@@ -165,7 +164,6 @@ private fun Root() {
                     NavTab(Tr.t(lang, "tab_home"), Ic.home),
                     NavTab(Tr.t(lang, "tab_schedule"), Ic.cal),
                     NavTab(Tr.t(lang, "tab_hw"), Ic.hw),
-                    NavTab(Tr.t(lang, "tab_widgets"), Ic.wid),
                 )
                 val onPlus: () -> Unit = {
                     PlusAnchor.capture()

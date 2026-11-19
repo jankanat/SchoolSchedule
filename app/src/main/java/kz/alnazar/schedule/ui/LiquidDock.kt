@@ -91,10 +91,10 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
     // Какие боковые кнопки нужны на текущей вкладке: «+» — на Главной и Заданиях, настройки — на Главной и Виджетах.
     // Лишняя кнопка втекает в капсулу так же, как при нажатии на неё.
     val page = pager.targetPage
-    val showL = remember { Animatable(if (page == 0 || page == 3) 1f else 0f) }
+    val showL = remember { Animatable(if (page == 0) 1f else 0f) }
     val showR = remember { Animatable(if (page == 0 || page == 2) 1f else 0f) }
     LaunchedEffect(page) {
-        launch { showL.animateTo(if (page == 0 || page == 3) 1f else 0f, tween(800, easing = BOUNCY)) }
+        launch { showL.animateTo(if (page == 0) 1f else 0f, tween(800, easing = BOUNCY)) }
         launch { showR.animateTo(if (page == 0 || page == 2) 1f else 0f, tween(800, easing = BOUNCY)) }
     }
 
@@ -149,17 +149,9 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         // ---- правая кнопка: «+» ----
         Box(Modifier.offset(x = maxWidth - circ, y = (pillH - circ) / 2).size(circ).plusAnchor()
             .graphicsLayer { val k = sR(); translationX = -dxR(); scaleX = k; scaleY = k; alpha = (k * 1.4f).coerceIn(0f, 1f) }
-            // мягкое свечение акцентного цвета под кнопкой
-            .drawBehind {
-                drawCircle(Brush.radialGradient(listOf(acc.copy(alpha = .38f), Color.Transparent), Offset(size.width / 2, size.height * .98f), size.width * .62f), radius = size.width * .62f, center = Offset(size.width / 2, size.height * .98f))
-            }
             .clip(CircleShape)
-            // мягкий блик: светлее сверху и по центру, к низу чуть насыщеннее (без кромки)
-            .drawWithContent {
-                drawContent()
-                drawCircle(Brush.radialGradient(listOf(Color(0x59FFFFFF), Color(0x1FFFFFFF), Color.Transparent), Offset(size.width * .5f, size.height * .12f), size.width * .78f))
-                drawCircle(Brush.verticalGradient(listOf(Color.Transparent, acc.copy(alpha = .22f)), startY = size.height * .55f, endY = size.height))
-            }
+            // слабая кромка: светлая сверху и снизу, каждая ~35% окружности
+            .border(1.2.dp, Brush.verticalGradient(0f to Color(0x66FFFFFF), .35f to Color.Transparent, .65f to Color.Transparent, 1f to Color(0x47FFFFFF)), CircleShape)
             .press(CircleShape, scaleTo = .88f, enabled = rOn, onClick = onPlus), contentAlignment = Alignment.Center) {
             Icon(Ic.plus, null, tint = plusInk, modifier = Modifier.size(28.dp))
         }

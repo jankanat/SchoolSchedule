@@ -76,6 +76,8 @@ fun SettingsScreen(st: AppState) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 Sec(Tr.t(lang, "set_look"))
                 Group {
+                    SetRow("🧩", 0xFF30D158, Tr.t(lang, "tab_widgets"), Tr.t(lang, "w_sub")) { ui.go("widgets") }
+                    RowDivider()
                     SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (mapOf("ios26" to "iOS 26", "pixel" to "Pixel OS", "ios18" to "iOS 18", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9.5")[st.style] ?: "iOS 26") + " · " + Tr.t(lang, if (st.theme == "custom") "th_custom" else "th_dark")) { ui.go("appearance") }
                     RowDivider()
                     SetRow("🌐", 0xFF0A84FF, Tr.t(lang, "language"), "${st.appLang.uppercase()} · ${Tr.t(lang, "tab_widgets")}: ${st.widgetLang.uppercase()}") { ui.go("language") }
@@ -124,6 +126,7 @@ fun SettingsScreen(st: AppState) {
 @Composable
 fun SubPage(id: String, st: AppState) {
     if (id == "settings") { SettingsScreen(st); return }
+    if (id == "widgets") { WidgetsScreen(st, remember { System.currentTimeMillis() }, true); return }
     val ui = LocalUi.current
     val ctx = LocalContext.current
     val lang = st.appLang
