@@ -50,10 +50,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import kotlin.math.min
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private val RADIUS = CubicBezierEasing(.2f, .6f, .2f, 1f)
+private val MOVE = CubicBezierEasing(.15f, .85f, .2f, 1f)
 private const val CLOSE = 380
 private val SOFT = CubicBezierEasing(.2f, .7f, .2f, 1f)
 
@@ -79,6 +81,7 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
     val ep = remember { Animatable(0f) }   // движение
     val e = remember { Animatable(0f) }    // масштаб, содержимое
     val er = remember { Animatable(0f) }   // радиус скругления
+    val wob = remember { Animatable(0f) }  // едва заметное «подрагивание» движения у цели
     var mounted by remember { mutableStateOf(false) }
     var host by remember { mutableStateOf(Offset.Zero) }
     LaunchedEffect(visible) {
@@ -90,11 +93,16 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
             androidx.compose.runtime.withFrameNanos { }
             androidx.compose.runtime.withFrameNanos { }
             // пружины: быстрый старт, очень долгое мягкое торможение и лёгкий перелёт; движение чуть опережает масштаб
-            launch { ep.animateTo(1f, spring(.8f, 240f)) }
+            wob.snapTo(0f)
+            launch { ep.animateTo(1f, tween(420, easing = MOVE)) }
+            // движение: гладкое торможение + чуть-чуть, но несколько раз, перелёта у цели
+            launch { delay(150); wob.animateTo(0f, spring(.28f, 320f), initialVelocity = .5f) }
             launch { er.animateTo(1f, tween(480, easing = RADIUS)) }
-            e.animateTo(1f, spring(.82f, 170f))
+            // масштаб: заметный мягкий перелёт
+            e.animateTo(1f, spring(.62f, 190f))
         } else if (mounted) {
             // закрытие — мягкое сворачивание обратно в кнопку (плавное торможение, без резкого щелчка в конце)
+            wob.snapTo(0f)
             launch { ep.animateTo(0f, spring(1f, 260f)) }
             launch { er.animateTo(0f, tween(CLOSE, easing = SOFT)) }
             e.animateTo(0f, spring(1f, 220f))
@@ -136,7 +144,7 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
                 })
             },
             modifier = Modifier
-                .offset { IntOffset(((ac.x - host.x) * (1f - ep.value)).roundToInt(), ((ac.y - host.y) * (1f - ep.value)).roundToInt()) }
+                .offset { IntOffset(((ac.x - host.x) * (1f - ep.value - wob.value)).roundToInt(), ((ac.y - host.y) * (1f - ep.value - wob.value)).roundToInt()) }
                 .graphicsLayer {
                     val v = e.value
                     shadowElevation = 28.dp.toPx() * v.coerceIn(0f, 1f)
