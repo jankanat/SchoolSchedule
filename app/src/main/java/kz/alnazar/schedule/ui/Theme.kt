@@ -230,7 +230,11 @@ fun fontFamily(id: String): FontFamily? = when (id) {
 }
 
 /** Ползунок «Скругление углов»: множитель радиусов стиля. */
-fun Tok.withRadius(k: Float): Tok = if (k == 1f) this else copy(rc = rc * k, rsg = rsg * k, iconRadius = (iconRadius * k).coerceAtMost(.5f))
+/** Скругление не ниже 20%: при нуле в данных приложение падало при запуске. */
+fun Tok.withRadius(k0: Float): Tok {
+    val k = k0.coerceIn(.2f, 1.5f)
+    return if (k == 1f) this else copy(rc = rc * k, rsg = rsg * k, iconRadius = (iconRadius * k).coerceAtMost(.5f))
+}
 
 @Composable
 fun AppTheme(tok: Tok = Ios26Dark, font: String = "style", content: @Composable () -> Unit) {

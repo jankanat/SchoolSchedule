@@ -442,7 +442,7 @@ fun FontAndCorners(st: AppState) {
             GradSlider(
                 "", st.rs / 1.5f, listOf(T.s2, T.acc), T.acc,
                 fmt = { "${(it * 150).roundToInt()}%" },
-                onChange = { v -> Store.preview { it.copy(rs = (v * 1.5f * 20).roundToInt() / 20f) } },
+                onChange = { v -> Store.preview { it.copy(rs = ((v * 1.5f * 20).roundToInt() / 20f).coerceAtLeast(.2f)) } },
                 onEnd = { Store.update(ctx) { it } },
             )
         }
