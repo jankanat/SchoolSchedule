@@ -359,11 +359,11 @@ private class R(
     /** 2×2 без уроков сегодня: заголовок и все уроки следующего учебного дня. */
     fun idleList(I: Sched.IdleInfo) {
         val pd = f(14f); val w2 = W - pd * 2
-        val head = if (cfg.idleNoLessons) join(I.title, I.day) else I.day
-        val hh = text(if (P.kind == "ios") up(head) else head, pd, pd, w2, f(12f), P.accT, 700, 2,
+        val head = I.day.ifEmpty { I.title }
+        val hh = text(if (P.kind == "ios") up(head) else head, pd, pd, w2, f(12f), P.accT, 700, 1,
             Layout.Alignment.ALIGN_NORMAL, if (P.kind == "ios") .02f else 0f)
         val top = pd + hh + f(8f)
-        val rowH = f(24f)
+        val rowH = f(18f)
         val avail = ((H - top - pd) / rowH).toInt().coerceAtLeast(1)
         val items = if (nd.size <= avail) nd else nd.take(avail - 1)
         val more = nd.size - items.size
@@ -371,13 +371,13 @@ private class R(
             val cy = top + rowH * i + rowH / 2
             circle(pd + f(3f), cy, f(3f), sub(sl).color.toInt())
             val tx = pd + f(12f)
-            base(hm(sl.start), tx, midBase(cy, f(12f)), f(12f), P.tx2, 600)
-            val nx = tx + f(40f)
+            base(hm(sl.start), tx, midBase(cy, f(11f)), f(11f), P.tx2, 600)
+            val nx = tx + f(38f)
             val r = roomShort(nd, nd.indexOf(sl))
             val rw = if (r.isNotEmpty()) bigW(r, f(11f), 400) + f(6f) else 0f
             val nw = W - pd - rw - nx
-            val h = th(name(sl), nw, f(13f), 700)
-            text(name(sl), nx, cy - h / 2, nw, f(13f), P.tx, 700)
+            val h = th(name(sl), nw, f(12f), 700)
+            text(name(sl), nx, cy - h / 2, nw, f(12f), P.tx, 700)
             if (r.isNotEmpty()) base(r, W - pd, midBase(cy, f(11f)), f(11f), P.tx2, 400, 0f, true)
         }
         if (more > 0) {
