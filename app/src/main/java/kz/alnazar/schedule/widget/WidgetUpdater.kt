@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import androidx.glance.appwidget.updateAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,11 +23,11 @@ object WidgetUpdater {
     suspend fun updateAllNow(ctx: Context) {
         Store.ensure(ctx)
         Store.tick.value = System.currentTimeMillis()
-        W22().updateAll(ctx)
-        W21().updateAll(ctx)
-        W12().updateAll(ctx)
-        W24().updateAll(ctx)
-        W42().updateAll(ctx)
+        LessonProvider.updateAll(ctx, W22Receiver::class.java, "2x2", 170, 170)
+        LessonProvider.updateAll(ctx, W21Receiver::class.java, "2x1", 170, 84)
+        LessonProvider.updateAll(ctx, W12Receiver::class.java, "1x2", 80, 180)
+        LessonProvider.updateAll(ctx, W24Receiver::class.java, "2x4", 170, 380)
+        LessonProvider.updateAll(ctx, W42Receiver::class.java, "4x2", 350, 180)
     }
 
     /** Обновить виджеты и переставить будильник (после любого изменения данных). */

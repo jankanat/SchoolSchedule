@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- OriginOS 7: мягкое стекло, светлая кромка и едва заметный блик сверху -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item><shape android:shape="rectangle"><corners android:radius="28dp" /><solid android:color="#D9222531" /></shape></item>
-    <item><shape android:shape="rectangle"><corners android:radius="28dp" />
-        <gradient android:angle="270" android:startColor="#0DFFFFFF" android:centerColor="#00FFFFFF" android:endColor="#00FFFFFF" /></shape></item>
-    <item><shape android:shape="rectangle"><corners android:radius="28dp" /><stroke android:width="1.2dp" android:color="#4DFFFFFF" /></shape></item>
-</layer-list>
