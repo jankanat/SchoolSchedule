@@ -259,10 +259,14 @@ private fun HeroColor(h: HeroInfo?, n: Now, st: AppState, lang: String) {
     Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp).clip(shape)
         .background(Brush.linearGradient(listOf(lerp(Color(0xFF0B1328), c, .35f), lerp(Color(0xFF0B1328), c, .12f), Color(0xFF0B1328))))
         .press(shape) {}.padding(22.dp)) {
-        Box(Modifier.align(Alignment.TopEnd).padding(top = 4.dp)) { BigEmoji(v.emoji, 118.dp) }
         Column {
-            NowLabel(h.label, Color.White.copy(alpha = .75f))
-            Text(v.name, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+            Box(Modifier.fillMaxWidth().heightIn(min = 84.dp)) {
+                Box(Modifier.align(Alignment.TopEnd)) { BigEmoji(v.emoji, 76.dp) }
+                Column(Modifier.padding(end = 88.dp)) {
+                    NowLabel(h.label, Color.White.copy(alpha = .75f))
+                    Text(v.name, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
             BigNumber(h.big, h.unit, 96.sp, FontWeight.Normal)
             ProgressLine(h.progress, Color.White, Color.White.copy(alpha = .14f), 8.dp, Modifier.padding(top = 18.dp))
             MetaRow(h.meta.substringBefore(" · ").takeIf { h.meta.contains(" · ") } ?: "", h.meta.substringAfterLast(" · "), Color.White.copy(alpha = .72f))

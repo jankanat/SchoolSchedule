@@ -237,9 +237,9 @@ private class R(
     fun midBase(cy: Float, size: Float) = cy + size * .36f
     /** базовая линия, чтобы верх цифр был на высоте y */
     fun fit(s: String, w: Float, maxH: Float, hi: Float, lo: Float, wt: Int, lines: Int): Float {
-        var fs = hi; val st = f(.5f)
+        var fs = hi * .92f; val st = f(.5f); val ww = w * .9f; val mh = maxH * .92f
         val words = s.split(' ').filter { it.isNotEmpty() }
-        while (fs > lo && (th(s, w, fs, wt, lines) > maxH || words.any { bigW(it, fs, wt) > w })) fs -= st
+        while (fs > lo && (th(s, ww, fs, wt, lines) > mh || words.any { bigW(it, fs, wt) > ww })) fs -= st
         return fs.coerceAtLeast(lo)
     }
     fun topBase(y: Float, size: Float) = y + size * .72f
@@ -443,9 +443,9 @@ private class R(
         val mins = minsOf(x)
         if (mins > 0 || isCur) {
             val u = " $mn"
-            val uw = bigW(u, f(14f), 700); val bw = bigW("$mins", f(38f), 800)
-            val nby = topBase(ph, f(38f))
-            base("$mins", W - pv - uw - bw, nby, f(38f), P.acc, 800)
+            val uw = bigW(u, f(14f), 700); val bw = bigW("$mins", f(34f), 800)
+            val nby = topBase(ph, f(34f))
+            base("$mins", W - pv - uw - bw, nby, f(34f), P.acc, 800)
             base(u, W - pv - uw, nby, f(14f), P.acc, 700)
         }
         val bx = pv; val bwid = W - pv * 2; val bh = f(8f)
@@ -576,7 +576,7 @@ private class R(
         if (nextT.isNotEmpty()) { val h = th(nextT, w, f(14f), 500); text(nextT, pd, by - h, w, f(14f), P.tx2, 500); by -= h + f(8f) }
         val mins = minsOf(x)
         val ringR = f(20f)
-        val sz = f(40f)
+        val sz = f(36f)
         run {
             val zb = by - sz * .78f - f(10f)
             val ts = fit(name(x), w, zb - y, f(36f), f(22f), 700, 2); val h = th(name(x), w, ts, 700, 2)
@@ -773,7 +773,7 @@ private class R(
             val bw = base("$mins", pd, topBase(y + f(4f), ns), ns, P.tx, 200, -.03f)
             base(" $mn", pd + bw + f(2f), topBase(y + f(4f), ns), f(12f), P.tx2, 400)
         } else base(hm(x.start), pd, topBase(y + f(4f), ns * .7f), ns * .7f, P.tx, 200, -.03f)
-        val isz = f(38f)
+        val isz = f(34f)
         val tx = pd + isz + f(10f); val tw = w - isz - f(10f)
         val r = room(L, L.indexOf(x))
         val h1 = th(name(x), tw, f(14f), 700, 2); val h2 = th(r, tw, f(12f))

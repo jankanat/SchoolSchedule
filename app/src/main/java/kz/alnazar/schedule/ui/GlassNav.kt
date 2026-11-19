@@ -107,6 +107,7 @@ class Drop {
     var d by mutableFloatStateOf(0f)          // деформация от скорости
     var lens by mutableFloatStateOf(0f)       // сила преломления 0..1
     var hl by mutableFloatStateOf(0f)         // яркость бликов по краю: в покое плавно гаснут
+    var sy by mutableFloatStateOf(0f); var syv = 0f; var syt = 0f   // вертикальное растяжение за пальцем (dp)
     var vx = 0f; var tx = 0f; var gv = 0f; var gt = 0f; var dv = 0f
     var follow = false; var lastF = 0L; var moving = false; var dir = 0f
     var wake by mutableStateOf(0)
@@ -124,7 +125,7 @@ class Drop {
 
     fun busy(active: Boolean, lensTarget: Float): Boolean =
         active || abs(tx - x) > .2f || abs(vx) > 3f || abs(g - gt) > .003f || abs(gv) > .02f ||
-            abs(d) > .002f || abs(dv) > .02f || abs(lens - lensTarget) > .01f || abs(hl - lensTarget) > .01f
+            abs(d) > .002f || abs(dv) > .02f || abs(sy - syt) > .05f || abs(syv) > .3f || abs(lens - lensTarget) > .01f || abs(hl - lensTarget) > .01f
 
     fun step(dtIn: Float, nowMs: Long, grabbing: Boolean, active: Boolean) {
         val dt = dtIn.coerceIn(.001f, .032f)
@@ -135,12 +136,13 @@ class Drop {
         gt = when { grabbing -> 1f; active || moving -> .8f; else -> 0f }
         val up = gt > g
         val (gp, gvv) = spring(g, gv, gt, if (up) 430f else 60f, if (up) .55f else 1f, dt); g = gp; gv = gvv
+        val (sp, sv) = spring(sy, syv, syt, SP_DEF.first, SP_DEF.second, dt); sy = sp; syv = sv
         val (dp, dvv) = spring(d, dv, (abs(vx) / 2000f).coerceIn(0f, .16f), SP_DEF.first, SP_DEF.second, dt); d = dp; dv = dvv
         val lt = if (active || moving) 1f else 0f
         val tau = if (lt > lens) .04f else .09f
         lens += (lt - lens) * (1f - kotlin.math.exp(-dt / tau))
         hl += (lt - hl) * (1f - kotlin.math.exp(-dt / (if (lt > hl) .05f else .3f)))
-        if (!busy(false, lt) && !follow) { x = tx; vx = 0f; d = 0f; dv = 0f; g = gt; gv = 0f; lens = lt; hl = lt }
+        if (!busy(false, lt) && !follow) { sy = syt; syv = 0f; x = tx; vx = 0f; d = 0f; dv = 0f; g = gt; gv = 0f; lens = lt; hl = lt }
     }
 }
 
@@ -291,7 +293,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     pressed = true; drop.wake++
-                    val x0 = down.position.x
+                    val x0 = down.position.x; val y0 = down.position.y
                     val ex = drop.x
                     val dpx = with(density) { 1.dp.toPx() }
                     val within = x0 / dpx in (ex - 2f)..(ex + baseW + 2f)
@@ -301,14 +303,17 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                         val c = ev.changes.firstOrNull { it.id == down.id } ?: break
                         if (!c.pressed) break
                         val dx = c.position.x - x0
-                        if (within && !dragging && abs(dx) > touchSlop) { dragging = true; grabbing = true }
+                        val dy = c.position.y - y0
+                        if (within && !dragging && (abs(dx) > touchSlop || abs(dy) > touchSlop)) { dragging = true; grabbing = true }
                         if (dragging) {
+                            val ady = abs(dy) / dpx
+                            drop.syt = sign(dy) * 30f * (1f - kotlin.math.exp(-ady / 34f)); drop.wake++
                             val nx = (ex + dx / dpx).coerceIn(btnX(0), btnX(n - 1))
                             drop.followTo(nx, System.nanoTime() / 1_000_000)
                             c.consume()
                         }
                     }
-                    pressed = false; grabbing = false; drop.wake++
+                    pressed = false; grabbing = false; drop.syt = 0f; drop.wake++
                     if (dragging) select(((drop.x - btnX(0)) / btnW).roundToInt())
                     else select(((x0 / dpx - NAV_PAD) / btnW).toInt())
                 }
@@ -338,16 +343,16 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                 Modifier
                     .layout { m, _ ->
                         val w = (baseW + 2 * 10f * drop.g) * (1 + drop.d)
-                        val h = (baseH + 2 * 7f * drop.g) * (1 - drop.d * .55f)
+                        val h = ((baseH + 2 * 7f * drop.g) * (1 - drop.d * .55f) + abs(drop.sy))
                         val pw = (w * density.density).roundToInt(); val ph = (h * density.density).roundToInt()
                         val p = m.measure(androidx.compose.ui.unit.Constraints.fixed(pw, ph))
                         layout(pw, ph) { p.place(0, 0) }
                     }
                     .graphicsLayer {
                         val w = (baseW + 2 * 10f * drop.g) * (1 + drop.d)
-                        val h = (baseH + 2 * 7f * drop.g) * (1 - drop.d * .55f)
+                        val h = ((baseH + 2 * 7f * drop.g) * (1 - drop.d * .55f) + abs(drop.sy))
                         translationX = (drop.x - (w - baseW) / 2f) * density.density
-                        translationY = (top - (h - baseH) / 2f) * density.density
+                        translationY = (top - (h - baseH) / 2f + min(drop.sy, 0f)) * density.density
                     }
                     .clip(pill),
             ) {
@@ -403,6 +408,6 @@ private fun translationXOf(d: Drop, baseW: Float, den: Float): Float {
 }
 
 private fun translationYOf(d: Drop, baseH: Float, top: Float, den: Float): Float {
-    val h = (baseH + 2 * 7f * d.g) * (1 - d.d * .55f)
-    return (top - (h - baseH) / 2f) * den
+    val h = (baseH + 2 * 7f * d.g) * (1 - d.d * .55f) + abs(d.sy)
+    return (top - (h - baseH) / 2f + min(d.sy, 0f)) * den
 }
