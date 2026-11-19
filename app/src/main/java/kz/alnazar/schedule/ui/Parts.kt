@@ -70,14 +70,14 @@ import java.time.LocalDate
 
 /* ===================== Поверхности по стилям ===================== */
 
-/** ColorOS 17: объёмная кнопка — светлее сверху, тёмная тень, блик по верхней кромке. */
+/** ColorOS 17: матовое стекло — светлая полупрозрачная заливка, сквозь неё виден фон, тонкая светлая кромка. */
 fun Modifier.vol3d(shape: Shape): Modifier = this
-    .shadow(10.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
+    .shadow(8.dp, shape, ambientColor = Color(0x66000000), spotColor = Color(0x66000000))
     .clip(shape)
-    .background(Brush.verticalGradient(listOf(Color(0xFF3A3A3D), Color(0xFF262628))))
+    .background(Brush.verticalGradient(listOf(Color(0x2BFFFFFF), Color(0x14FFFFFF))))
     .drawBehind {
         val o = shape.createOutline(size, layoutDirection, this)
-        drawOutline(o, Brush.verticalGradient(0f to Color(0x29FFFFFF), .18f to Color.Transparent), style = Stroke(1.dp.toPx()))
+        drawOutline(o, Brush.verticalGradient(0f to Color(0x40FFFFFF), .3f to Color(0x12FFFFFF), 1f to Color(0x0DFFFFFF)), style = Stroke(1.dp.toPx()))
     }
 
 /** iOS 26: жидкое стекло — полупрозрачно, блики на 45° (сверху-слева и снизу-справа). */

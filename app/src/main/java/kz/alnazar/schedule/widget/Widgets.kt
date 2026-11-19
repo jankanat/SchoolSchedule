@@ -103,6 +103,19 @@ private val INK: ColorProvider @Composable get() = ColorProvider(androidx.compos
 private val sid: String @Composable get() = LocalWP.current.id
 private fun subjColor(s: AppState, x: Slot, lang: String) = Color(Sched.subj(s, x.lesson.subj, lang).color)
 
+/** Полоса прогресса со скруглёнными краями: Glance не умеет обрезать по скруглению, поэтому рисуем её сегментами. */
+@Composable
+private fun Prog(frac: Float, color: ColorProvider, mod: GlanceModifier = GlanceModifier) {
+    val n = 24; val on = (frac.coerceIn(0f, 1f) * n).toInt().coerceAtLeast(if (frac > 0f) 1 else 0)
+    Row(mod.fillMaxWidth().height(5.dp)) {
+        for (i in 0 until n) {
+            Box(GlanceModifier.defaultWeight().fillMaxHeight().padding(horizontal = 0.5.dp)) {
+                Box(GlanceModifier.fillMaxSize().cornerRadius(2.dp).background(if (i < on) color else ColorProvider(LocalWP.current.line))) {}
+            }
+        }
+    }
+}
+
 @Composable
 private fun st(size: TextUnit, color: ColorProvider = TX, bold: Boolean = false) =
     TextStyle(color = color, fontSize = size, fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal, fontFamily = LocalWP.current.ff)
@@ -255,6 +268,18 @@ class W22 : LessonWidget() {
                         }
                         Text(name(s, sl, lang), style = st(14.sp, bold = true), maxLines = 1, modifier = GlanceModifier.padding(top = 5.dp))
                         Mt(Sched.meta(L, n.cur, lang, cfg.time, cfg.room))
+                        Spacer(GlanceModifier.defaultWeight())
+                        if (n.next >= 0) {
+                            val nx = L[n.next]
+                            Row(GlanceModifier.fillMaxWidth().background(LocalWP.current.colBg).cornerRadius(16.dp).padding(horizontal = 10.dp, vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+                                TileS(s, nx, lang, 20.dp); Spacer(GlanceModifier.width(8.dp))
+                                Column(GlanceModifier.defaultWeight()) {
+                                    Text(Tr.t(lang, "next"), style = st(9.sp, TX2), maxLines = 1)
+                                    Text(name(s, nx, lang), style = st(12.sp, bold = true), maxLines = 1)
+                                }
+                                Text(Tr.hm(nx.start), style = st(11.sp, TX2), maxLines = 1)
+                            }
+                        }
                     }
                     "ios26", "ios18" -> {
                         Lb(Tr.t(lang, "now"), if (sl.lesson.room.isNotBlank() && cfg.room) Sched.roomLabel(L, n.cur, lang) else "")
@@ -264,7 +289,7 @@ class W22 : LessonWidget() {
                             Text(Tr.hm(sl.end), style = st(30.sp), maxLines = 1)
                             Text("  " + Tr.t(lang, "till", "").trim(), style = st(11.sp, TX2), maxLines = 1)
                         }
-                        androidx.glance.appwidget.LinearProgressIndicator(frac, GlanceModifier.fillMaxWidth().padding(top = 4.dp), color = LBC, backgroundColor = ColorProvider(LocalWP.current.line))
+                        Prog(frac, LBC, GlanceModifier.fillMaxWidth().padding(top = 4.dp))
                     }
                     "origin" -> {
                         Lb(Tr.t(lang, "now"))
@@ -285,7 +310,7 @@ class W22 : LessonWidget() {
                         Row(GlanceModifier.fillMaxWidth()) {
                             Text(Tr.hm(sl.start), style = st(10.sp, TX2), modifier = GlanceModifier.defaultWeight()); Text(Tr.hm(sl.end), style = st(10.sp, TX2))
                         }
-                        androidx.glance.appwidget.LinearProgressIndicator(frac, GlanceModifier.fillMaxWidth().padding(top = 3.dp), color = ACC, backgroundColor = ColorProvider(LocalWP.current.line))
+                        Prog(frac, ACC, GlanceModifier.fillMaxWidth().padding(top = 3.dp))
                     }
                     else -> {
                         Lb(Tr.t(lang, "now"), tillCur(n, lang))
@@ -298,7 +323,7 @@ class W22 : LessonWidget() {
                             }
                         }
                         Spacer(GlanceModifier.defaultWeight())
-                        androidx.glance.appwidget.LinearProgressIndicator(frac, GlanceModifier.fillMaxWidth().padding(bottom = 4.dp), color = ACC, backgroundColor = ColorProvider(LocalWP.current.line))
+                        Prog(frac, ACC, GlanceModifier.fillMaxWidth().padding(bottom = 4.dp))
                     }
                 }
             } else {
@@ -312,7 +337,7 @@ class W22 : LessonWidget() {
                     }
                 }
             }
-            if (sid != "pixel" && sid != "origin") {
+            if (sid == "color" || sid == "ios18" || sid == "") {
             Spacer(GlanceModifier.defaultWeight())
             Box(GlanceModifier.fillMaxWidth().height(1.dp).background(LINE)) {}
             Spacer(GlanceModifier.height(2.dp))
@@ -478,9 +503,9 @@ private fun Lr(s: AppState, L: List<Slot>, i: Int, lang: String, state: Int) {
             }
         }
         "pixel" -> {
-            var m = GlanceModifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 5.dp).cornerRadius(if (state == 1) 16.dp else 8.dp)
+            var m = GlanceModifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp).cornerRadius(if (state == 1) 18.dp else 10.dp)
             m = m.background(if (state == 1) LocalWP.current.acc else LocalWP.current.colBg)
-            Row(GlanceModifier.fillMaxWidth().padding(bottom = 2.dp)) {
+            Row(GlanceModifier.fillMaxWidth().padding(bottom = 4.dp)) {
                 Row(m, verticalAlignment = Alignment.CenterVertically) {
                     TileS(s, x, lang, 22.dp); Spacer(GlanceModifier.width(8.dp))
                     Column(GlanceModifier.defaultWeight()) {

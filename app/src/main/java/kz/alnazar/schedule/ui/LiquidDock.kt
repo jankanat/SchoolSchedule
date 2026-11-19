@@ -64,7 +64,7 @@ import kotlin.math.abs
 /** Кривая как на картинке пользователя: резкий старт, долгое плавное затухание. */
 private val DECEL = CubicBezierEasing(.05f, .7f, .1f, 1f)
 /** Та же кривая, но с лёгким перелётом в конце — кнопки чуть пружинят. */
-private val BOUNCY = CubicBezierEasing(.05f, .72f, .12f, 1.09f)
+private val BOUNCY = CubicBezierEasing(.05f, .66f, .10f, 1.22f)
 
 /**
  * Нижнее меню ColorOS 17: слева круглая кнопка настроек, в центре стеклянная капсула с вкладками, справа зелёная «+».
@@ -93,8 +93,8 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
     val showL = remember { Animatable(if (page == 0 || page == 3) 1f else 0f) }
     val showR = remember { Animatable(if (page == 0 || page == 2) 1f else 0f) }
     LaunchedEffect(page) {
-        launch { showL.animateTo(if (page == 0 || page == 3) 1f else 0f, tween(460, easing = BOUNCY)) }
-        launch { showR.animateTo(if (page == 0 || page == 2) 1f else 0f, tween(460, easing = BOUNCY)) }
+        launch { showL.animateTo(if (page == 0 || page == 3) 1f else 0f, tween(800, easing = BOUNCY)) }
+        launch { showR.animateTo(if (page == 0 || page == 2) 1f else 0f, tween(800, easing = BOUNCY)) }
     }
 
     val circ = 62.dp; val gap = 8.dp; val pillH = 68.dp
@@ -149,12 +149,11 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         Box(Modifier.offset(x = maxWidth - circ, y = (pillH - circ) / 2).size(circ).plusAnchor()
             .graphicsLayer { val k = sR(); translationX = -dxR(); scaleX = k; scaleY = k; alpha = (k * 1.4f).coerceIn(0f, 1f) }
             .clip(CircleShape)
-            // едва заметный белый градиент сверху-слева
+            // мягкий белый блик сверху-слева (без кромки)
             .drawWithContent {
                 drawContent()
-                drawRect(Brush.linearGradient(listOf(Color.White.copy(alpha = .16f), Color.Transparent), Offset.Zero, Offset(size.width, size.height * .9f)))
+                drawCircle(Brush.radialGradient(listOf(Color(0x40FFFFFF), Color(0x14FFFFFF), Color.Transparent), Offset(size.width * .32f, size.height * .2f), size.width * .62f))
             }
-            .border(1.dp, Brush.verticalGradient(listOf(Color(0x66FFFFFF), Color.Transparent, Color(0x1AFFFFFF))), CircleShape)
             .press(CircleShape, scaleTo = .88f, enabled = rOn, onClick = onPlus), contentAlignment = Alignment.Center) {
             Icon(Ic.plus, null, tint = plusInk, modifier = Modifier.size(28.dp))
         }

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- ColorOS 17: матовое стекло с белым контурным свечением -->
+<!-- ColorOS 17: матовое стекло, светлая кромка и едва заметный блик сверху -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item><shape android:shape="rectangle"><corners android:radius="22dp" /><solid android:color="#E6242424" /></shape></item>
     <item><shape android:shape="rectangle"><corners android:radius="22dp" />
-        <gradient android:angle="270" android:startColor="#1FFFFFFF" android:centerColor="#00FFFFFF" android:endColor="#00FFFFFF" /></shape></item>
-    <item><shape android:shape="rectangle"><corners android:radius="22dp" /><stroke android:width="1.2dp" android:color="#47FFFFFF" /></shape></item>
+        <gradient android:angle="270" android:startColor="#0DFFFFFF" android:centerColor="#00FFFFFF" android:endColor="#00FFFFFF" /></shape></item>
+    <item><shape android:shape="rectangle"><corners android:radius="22dp" /><stroke android:width="1.2dp" android:color="#52FFFFFF" /></shape></item>
     <item android:left="2dp" android:top="2dp" android:right="2dp" android:bottom="2dp"><shape android:shape="rectangle"><corners android:radius="20dp" /><stroke android:width="3dp" android:color="#0FFFFFFF" /></shape></item>
 </layer-list>
