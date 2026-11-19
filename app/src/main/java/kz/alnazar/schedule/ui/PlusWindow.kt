@@ -101,11 +101,11 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
             // масштаб: заметный мягкий перелёт
             e.animateTo(1f, spring(.62f, 190f))
         } else if (mounted) {
-            // закрытие — мягкое сворачивание обратно в кнопку (плавное торможение, без резкого щелчка в конце)
+            // закрытие: окно мягко «всасывается» в кнопку — сначала неспешно, в середине быстрее, у кнопки плавно тормозит; круглеет заранее
             wob.snapTo(0f)
-            launch { ep.animateTo(0f, spring(1f, 260f)) }
-            launch { er.animateTo(0f, tween(CLOSE, easing = SOFT)) }
-            e.animateTo(0f, spring(1f, 220f))
+            launch { ep.animateTo(0f, tween(560, easing = CubicBezierEasing(.45f, 0f, .12f, 1f))) }
+            launch { er.animateTo(0f, tween(420, easing = CubicBezierEasing(.3f, 0f, .2f, 1f))) }
+            e.animateTo(0f, tween(560, easing = CubicBezierEasing(.4f, 0f, .15f, 1f)))
             mounted = false; PlusAnchor.open = false
         }
     }
