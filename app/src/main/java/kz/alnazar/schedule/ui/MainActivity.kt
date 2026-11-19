@@ -168,14 +168,15 @@ private fun Root() {
                     NavTab(Tr.t(lang, "tab_widgets"), Ic.wid),
                 )
                 val onPlus: () -> Unit = {
+                    PlusAnchor.capture()
                     when (pager.currentPage) {
                         1 -> {
                             val today = java.time.LocalDate.now()
                             val dow = (today.dayOfWeek.value - 1).coerceAtMost(st.schoolDays - 1)
                             val n = st.week.getOrNull(dow)?.size ?: 0
-                            ui.open { LessonSheet(dow, n, kz.alnazar.schedule.logic.Sched.weekKey(today)) }
+                            ui.open(morph = true) { LessonSheet(dow, n, kz.alnazar.schedule.logic.Sched.weekKey(today)) }
                         }
-                        else -> ui.open { HwSheet(null, "hw") }
+                        else -> ui.open(morph = true) { HwSheet(null, "hw") }
                     }
                 }
                 StyleNav(tabs, pager, backdrop, Modifier.align(Alignment.BottomCenter), onPlus) { ui.go("settings") }
@@ -196,7 +197,10 @@ private fun Root() {
                 else Box(Modifier.fillMaxSize())
             }
 
-            SheetHost(ui.sheet != null, { ui.close() }) {
+            SheetHost(ui.sheet != null && !ui.sheetMorph, { ui.close() }) {
+                key(ui.sheetId) { ui.lastSheet?.invoke(this) }
+            }
+            PlusWindow(ui.sheet != null && ui.sheetMorph, { ui.close() }) {
                 key(ui.sheetId) { ui.lastSheet?.invoke(this) }
             }
         }

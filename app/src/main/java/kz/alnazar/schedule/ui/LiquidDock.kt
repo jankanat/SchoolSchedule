@@ -91,8 +91,8 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
     val showL = remember { Animatable(if (page == 0 || page == 3) 1f else 0f) }
     val showR = remember { Animatable(if (page == 0 || page == 2) 1f else 0f) }
     LaunchedEffect(page) {
-        launch { showL.animateTo(if (page == 0 || page == 3) 1f else 0f, tween(560, easing = DECEL)) }
-        launch { showR.animateTo(if (page == 0 || page == 2) 1f else 0f, tween(560, easing = DECEL)) }
+        launch { showL.animateTo(if (page == 0 || page == 3) 1f else 0f, spring(.64f, 640f)) }
+        launch { showR.animateTo(if (page == 0 || page == 2) 1f else 0f, spring(.64f, 640f)) }
     }
 
     val circ = 62.dp; val gap = 8.dp; val pillH = 68.dp
@@ -139,7 +139,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
             Icon(Ic.set, null, tint = t.tx, modifier = Modifier.size(26.dp))
         }
         // ---- правая кнопка: «+» ----
-        Box(Modifier.offset(x = maxWidth - circ, y = (pillH - circ) / 2).size(circ)
+        Box(Modifier.offset(x = maxWidth - circ, y = (pillH - circ) / 2).size(circ).plusAnchor()
             .graphicsLayer { translationX = -dxR; scaleX = sR; scaleY = sR; alpha = (sR * 1.4f).coerceIn(0f, 1f) }
             .clip(CircleShape)
             .border(1.dp, Brush.verticalGradient(listOf(Color(0x66FFFFFF), Color.Transparent, Color(0x1AFFFFFF))), CircleShape)

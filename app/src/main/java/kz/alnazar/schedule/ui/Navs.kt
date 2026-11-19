@@ -64,13 +64,13 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun StyleNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, modifier: Modifier, onPlus: () -> Unit, onSettings: () -> Unit) {
-    // «+» нужен только на Главной и Заданиях; на Расписании и Виджетах он уходит (там свои кнопки добавления)
-    val showPlus = pager.targetPage == 0 || pager.targetPage == 2
+    // «+» нужен только на Главной и Заданиях; на Расписании и Виджетах он уходит (там свои кнопки добавления). У Pixel и One UI он на всех экранах.
+    val showPlus = T.nav == "m3" || T.id == "oneui" || pager.targetPage == 0 || pager.targetPage == 2
     when (T.nav) {
         "island" -> LiquidDock(tabs, pager, backdrop, modifier, onPlus, onSettings)
         "glass", "origin" -> {
             // Ширина меню не меняется (иначе каждый кадр пересчитывается стекло и всё лагает): оно только плавно съезжает к центру.
-            val shift by animateDpAsState(if (showPlus) 0.dp else 40.dp, tween(460, easing = androidx.compose.animation.core.CubicBezierEasing(.05f, .7f, .1f, 1f)), label = "navShift")
+            val shift by animateDpAsState(if (showPlus) 0.dp else 40.dp, spring(.66f, 600f), label = "navShift")
             Box(modifier.fillMaxWidth()) {
                 GlassNav(tabs, pager, backdrop, Modifier.padding(end = 80.dp).offset { androidx.compose.ui.unit.IntOffset(shift.roundToPx(), 0) }, accent = if (T.nav == "origin") Color(0xFF4C8DFF) else null)
                 SidePop(showPlus, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 14.dp, bottom = 14.dp)) {
@@ -89,8 +89,8 @@ fun StyleNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
 fun SidePop(show: Boolean, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     androidx.compose.animation.AnimatedVisibility(
         show, modifier,
-        enter = androidx.compose.animation.scaleIn(spring(.7f, 420f), initialScale = .2f) + androidx.compose.animation.fadeIn(tween(200)),
-        exit = androidx.compose.animation.scaleOut(tween(300, easing = androidx.compose.animation.core.CubicBezierEasing(.05f, .7f, .1f, 1f)), targetScale = .2f) + androidx.compose.animation.fadeOut(tween(260)),
+        enter = androidx.compose.animation.scaleIn(spring(.58f, 520f), initialScale = .2f) + androidx.compose.animation.fadeIn(tween(200)),
+        exit = androidx.compose.animation.scaleOut(spring(.7f, 760f), targetScale = .2f) + androidx.compose.animation.fadeOut(tween(200)),
     ) { content() }
 }
 
@@ -100,7 +100,7 @@ fun SideGlassBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, backdrop
     val t = T
     val shape = androidx.compose.foundation.shape.CircleShape
     val tint = when (t.id) { "oneui" -> Color(0x2EFFFFFF); "origin" -> Color(0x33FFFFFF); else -> Color(0x40302F3C) }
-    Box(modifier.size(size).press(shape, scaleTo = .9f, onClick = onClick).backdropBlur(backdrop, 14.dp, tint, shape)
+    Box(modifier.size(size).plusAnchor().press(shape, scaleTo = .9f, onClick = onClick).backdropBlur(backdrop, 14.dp, tint, shape)
         .then(if (t.id == "oneui") Modifier else Modifier.border(1.dp, Brush.linearGradient(listOf(Color(0xB3FFFFFF), Color(0x14FFFFFF), Color(0x80FFFFFF))), shape)),
         contentAlignment = Alignment.Center) {
         Icon(icon, null, tint = t.tx, modifier = Modifier.size(28.dp))
@@ -175,7 +175,7 @@ fun PixelNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
         SidePop(showPlus) {
             Row {
                 Spacer(Modifier.width(10.dp))
-                Box(Modifier.size(64.dp).shadow(10.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color(0xFFFF8A80))
+                Box(Modifier.size(64.dp).plusAnchor().shadow(10.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color(0xFFFF8A80))
                     .press(RoundedCornerShape(22.dp), scaleTo = .9f, onClick = onPlus), contentAlignment = Alignment.Center) {
                     Icon(Ic.plus, null, tint = Color(0xFF4A0E0B), modifier = Modifier.size(28.dp))
                 }

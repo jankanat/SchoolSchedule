@@ -30,8 +30,11 @@ class UiCtl {
     val page: String? get() = stack.lastOrNull()
     var sheetId by mutableStateOf(0)
         private set
+    /** Шторка открыта из «+»: вместо нижней шторки показывается окно, вырастающее из кнопки. */
+    var sheetMorph by mutableStateOf(false)
+        private set
 
-    fun open(content: @Composable ColumnScope.() -> Unit) { lastSheet = content; sheetId++; sheet = content }
+    fun open(morph: Boolean = false, content: @Composable ColumnScope.() -> Unit) { lastSheet = content; sheetId++; sheetMorph = morph; sheet = content }
     fun close() { sheet = null }
     fun go(p: String) { stack.add(p) }
     fun back() { if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) }

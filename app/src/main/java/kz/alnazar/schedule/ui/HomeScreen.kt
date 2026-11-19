@@ -56,6 +56,8 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
@@ -690,58 +692,104 @@ private fun GlassDigits(text: String, modifier: Modifier) {
 private fun HomeTasks(st: AppState, list: List<Hw>, today: LocalDate, lang: String) {
     val t = T
     val ui = LocalUi.current
-    if (list.isEmpty()) { Text(Tr.t(lang, "no_hw"), color = t.tx2, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp)); return }
+    // Только что отмеченное задание не пропадает мгновенно: остаётся на своём месте ~1 с (видно, как рисуется галочка), потом плавно уезжает.
+    val linger = remember { androidx.compose.runtime.mutableStateMapOf<String, Linger>() }
+    val jobs = remember { mutableMapOf<String, kotlinx.coroutines.Job>() }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val onToggle: (Hw) -> Unit = { h ->
+        val ex = linger[h.id]
+        if (ex != null) {
+            jobs.remove(h.id)?.cancel(); linger.remove(h.id); toggleDone(h)
+        } else {
+            val idx = list.indexOfFirst { it.id == h.id }.coerceAtLeast(0)
+            linger[h.id] = Linger(idx, h.copy(done = true), false)
+            toggleDone(h)
+            jobs[h.id] = scope.launch {
+                kotlinx.coroutines.delay(1000)
+                linger[h.id]?.let { linger[h.id] = it.copy(leaving = true) }
+                kotlinx.coroutines.delay(500)
+                linger.remove(h.id); jobs.remove(h.id)
+            }
+        }
+    }
+    val shown: List<Pair<Hw, Boolean>> = run {
+        val out = list.filter { l -> linger[l.id] == null }.map { it to false }.toMutableList()
+        linger.values.sortedBy { it.idx }.forEach { l -> out.add(l.idx.coerceIn(0, out.size), l.hw to l.leaving) }
+        out
+    }
+    if (shown.isEmpty()) { Text(Tr.t(lang, "no_hw"), color = t.tx2, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 6.dp)); return }
     if (t.id == "color") {
         // ColorOS: цветные карточки с прокруткой вбок, как «Другие альбомы»
         LazyRow(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(list, key = { it.id }) { h ->
+            items(shown.filter { !it.second }, key = { it.first.id }) { (h, _) ->
                 val v = h.subj?.let { Sched.subj(st, it, lang) }
                 val c = Color(v?.color ?: 0xFF8E8E93)
                 val shape = RoundedCornerShape(28.dp)
-                Column(Modifier.width(168.dp).height(184.dp).clip(shape)
+                val dim by animateFloatAsState(if (h.done) .55f else 1f, tween(300), label = "dim")
+                Column(Modifier.animateItem(fadeInSpec = null, placementSpec = spring(.8f, 380f), fadeOutSpec = tween(260)).width(168.dp).height(184.dp).clip(shape)
                     .background(Brush.linearGradient(listOf(lerp(Color(0xFF101010), c, .45f), lerp(Color(0xFF101010), c, .22f))))
                     .press(shape) { ui.open { HwSheet(h.id, h.kind) } }.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                        if (v != null) BigEmoji(v.emoji, 40.dp)
+                        if (v != null) Box(Modifier.graphicsLayer { alpha = dim }) { BigEmoji(v.emoji, 40.dp) }
                         Spacer(Modifier.weight(1f))
-                        CheckCircle(h.done, Color.White) { toggleDone(h) }
+                        CheckCircle(h.done, Color.White) { onToggle(h) }
                     }
-                    Text(v?.name ?: Tr.t(lang, "type_note"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.padding(top = 12.dp))
-                    Text(h.text, color = Color.White.copy(alpha = .75f), fontSize = 15.sp, lineHeight = 19.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(top = 4.dp))
+                    Column(Modifier.graphicsLayer { alpha = dim }) {
+                        Text(v?.name ?: Tr.t(lang, "type_note"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, modifier = Modifier.padding(top = 12.dp),
+                            textDecoration = if (h.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null)
+                        Text(h.text, color = Color.White.copy(alpha = .75f), fontSize = 15.sp, lineHeight = 19.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+                    }
+                    Spacer(Modifier.weight(1f))
                     h.due?.let { Text(Sched.dueLabel(lang, today, LocalDate.parse(it)), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(Color(0x47000000)).padding(horizontal = 10.dp, vertical = 5.dp)) }
+                        modifier = Modifier.graphicsLayer { alpha = dim }.clip(RoundedCornerShape(99.dp)).background(Color(0x47000000)).padding(horizontal = 10.dp, vertical = 5.dp)) }
                 }
             }
         }
         return
     }
     val sep = t.pixel || t.id == "origin"
+    val gap = if (t.pixel) 3.dp else 8.dp
     val rows: @Composable () -> Unit = {
-        list.forEachIndexed { i, h ->
+        shown.forEachIndexed { i, (h, leaving) ->
+            androidx.compose.runtime.key(h.id) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !leaving,
+                exit = androidx.compose.animation.shrinkVertically(spring(.85f, 420f)) + androidx.compose.animation.fadeOut(tween(220)) +
+                    androidx.compose.animation.slideOutHorizontally(tween(320)) { it / 3 },
+            ) {
+            Column {
             val v = h.subj?.let { Sched.subj(st, it, lang) }
-            val first = i == 0; val last = i == list.lastIndex
+            val first = i == 0; val last = i == shown.lastIndex
             val shape = when {
                 t.pixel -> RoundedCornerShape(topStart = if (first) 28.dp else 8.dp, topEnd = if (first) 28.dp else 8.dp, bottomStart = if (last) 28.dp else 8.dp, bottomEnd = if (last) 28.dp else 8.dp)
                 else -> RoundedCornerShape(24.dp)
             }
             val bg = when { t.pixel -> Modifier.clip(shape).background(t.s1); t.id == "origin" -> Modifier.vivoGlass(shape); else -> Modifier }
             val dueC = if (h.due == today.toString() || (h.due != null && h.due < today.toString())) (if (t.pixel) Color(0xFFFFB1A8) else Color(0xFFFF9F0A)) else t.tx2
+            val dim by animateFloatAsState(if (h.done) .5f else 1f, tween(300), label = "dim")
             Row(Modifier.fillMaxWidth().appear(i).then(bg).press(shape) { ui.open { HwSheet(h.id, h.kind) } }.padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (t.pixel) CheckSquare(h.done) { toggleDone(h) } else CheckCircle(h.done, t.tx2) { toggleDone(h) }
-                if (v != null && !t.id.startsWith("ios")) Tile(v.emoji, v.color, 38.dp)
-                Column(Modifier.weight(1f)) {
-                    Text(v?.name ?: Tr.t(lang, "type_note"), color = t.tx, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                if (t.pixel) CheckSquare(h.done) { onToggle(h) } else CheckCircle(h.done, t.tx2) { onToggle(h) }
+                if (v != null && !t.id.startsWith("ios")) Box(Modifier.graphicsLayer { alpha = dim }) { Tile(v.emoji, v.color, 38.dp) }
+                Column(Modifier.weight(1f).graphicsLayer { alpha = dim }) {
+                    Text(v?.name ?: Tr.t(lang, "type_note"), color = t.tx, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                        textDecoration = if (h.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null)
                     if (h.text.isNotBlank()) Text(h.text, color = t.tx2, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                h.due?.let { Text(Sched.dueLabel(lang, today, LocalDate.parse(it)), color = dueC, fontSize = 13.sp, fontWeight = FontWeight.SemiBold) }
+                h.due?.let { Text(Sched.dueLabel(lang, today, LocalDate.parse(it)), color = dueC, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.graphicsLayer { alpha = dim }) }
             }
             if (!sep && !last) Box(Modifier.padding(start = 56.dp).fillMaxWidth().height(1.dp).background(t.line))
+            if (sep && !last) Spacer(Modifier.height(gap))
+            }
+            }
+            }
         }
     }
-    if (sep) Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(if (t.pixel) 3.dp else 8.dp)) { rows() }
+    if (sep) Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { rows() }
     else Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).styleCard(RoundedCornerShape(28.dp)).padding(vertical = 4.dp)) { rows() }
 }
+
+private data class Linger(val idx: Int, val hw: Hw, val leaving: Boolean)
 
 private fun toggleDone(h: Hw) {
     val ctx = kz.alnazar.schedule.App.ctx
