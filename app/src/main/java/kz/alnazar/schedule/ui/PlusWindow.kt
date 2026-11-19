@@ -51,6 +51,12 @@ import kotlin.math.min
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+private const val DUR = 250
+private val MOVE = CubicBezierEasing(0f, 0f, .12f, 1.07f)
+private val SCALE = CubicBezierEasing(0f, 0f, .78f, 1.06f)
+private val RADIUS = CubicBezierEasing(0f, 0f, .59f, 1f)
+private fun reversed(f: androidx.compose.animation.core.Easing) = androidx.compose.animation.core.Easing { 1f - f.transform(1f - it) }
+
 /** Где на экране находится кнопка «+», из которой «вырастает» окно. */
 object PlusAnchor {
     var coords: LayoutCoordinates? = null
@@ -70,18 +76,23 @@ fun Modifier.plusAnchor(): Modifier = this.onGloballyPositioned { PlusAnchor.coo
 @Composable
 fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val t = T
-    // Как открытие приложения в HyperOS / ColorOS / iOS: движение к центру быстрое, а масштаб растёт медленнее (на половине пути ~ четверть размера)
+    // Параметры анимации: длительность 0,25 с; движение (0, 0, .12, 1), масштаб (0, 0, .78, 1), радиус (0, 0, .59, 1).
+    // Движение и масштаб с небольшим перелётом (y2 > 1) — лёгкая пружина.
     val ep = remember { Animatable(0f) }   // движение
-    val e = remember { Animatable(0f) }    // размер, форма, содержимое
+    val e = remember { Animatable(0f) }    // масштаб, содержимое
+    val er = remember { Animatable(0f) }   // радиус скругления
     var mounted by remember { mutableStateOf(false) }
     LaunchedEffect(visible) {
         if (visible) {
             PlusAnchor.open = true; mounted = true
-            launch { ep.animateTo(1f, tween(520, easing = CubicBezierEasing(.1f, .8f, .2f, 1f))) }
-            e.animateTo(1f, tween(520, easing = CubicBezierEasing(.25f, .35f, .2f, 1f)))
+            launch { ep.animateTo(1f, tween(DUR, easing = MOVE)) }
+            launch { er.animateTo(1f, tween(DUR, easing = RADIUS)) }
+            e.animateTo(1f, tween(DUR, easing = SCALE))
         } else if (mounted) {
-            launch { ep.animateTo(0f, tween(400, easing = CubicBezierEasing(.3f, 0f, .2f, 1f))) }
-            e.animateTo(0f, tween(400, easing = CubicBezierEasing(.3f, 0f, .2f, 1f)))
+            // закрытие — то же самое в обратную сторону
+            launch { ep.animateTo(0f, tween(DUR, easing = reversed(MOVE))) }
+            launch { er.animateTo(0f, tween(DUR, easing = reversed(RADIUS))) }
+            e.animateTo(0f, tween(DUR, easing = reversed(SCALE)))
             mounted = false; PlusAnchor.open = false
         }
     }
@@ -126,7 +137,7 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
                     val v = e.value
                     shadowElevation = 28.dp.toPx() * v.coerceIn(0f, 1f)
                     clip = true
-                    shape = RoundedCornerShape(CornerSize(lerp(startW / 2f, endCr, v).coerceAtLeast(0f)))
+                    shape = RoundedCornerShape(CornerSize(lerp(startW / 2f, endCr, er.value).coerceAtLeast(0f)))
                     alpha = if (host == Offset.Zero) 0f else 1f
                 }
                 .drawBehind { drawRect(androidx.compose.ui.graphics.lerp(c0, t.sheet, (e.value * 2.2f).coerceIn(0f, 1f))) }
