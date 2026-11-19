@@ -53,12 +53,9 @@ import kotlin.math.min
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private const val DUR = 250
-private val MOVE = CubicBezierEasing(0f, 0f, .12f, 1.07f)
-private val SCALE = CubicBezierEasing(0f, 0f, .78f, 1.06f)
-private val RADIUS = CubicBezierEasing(0f, 0f, .59f, 1f)
-private const val CLOSE = 300
-private val SOFT = CubicBezierEasing(.2f, 0f, 0f, 1f)
+private val RADIUS = CubicBezierEasing(.2f, .6f, .2f, 1f)
+private const val CLOSE = 380
+private val SOFT = CubicBezierEasing(.2f, .7f, .2f, 1f)
 
 /** Где на экране находится кнопка «+», из которой «вырастает» окно. */
 object PlusAnchor {
@@ -79,8 +76,6 @@ fun Modifier.plusAnchor(): Modifier = this.onGloballyPositioned { PlusAnchor.coo
 @Composable
 fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val t = T
-    // Параметры анимации: длительность 0,25 с; движение (0, 0, .12, 1), масштаб (0, 0, .78, 1), радиус (0, 0, .59, 1).
-    // Движение и масштаб с небольшим перелётом (y2 > 1) — лёгкая пружина.
     val ep = remember { Animatable(0f) }   // движение
     val e = remember { Animatable(0f) }    // масштаб, содержимое
     val er = remember { Animatable(0f) }   // радиус скругления
@@ -94,14 +89,15 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
             snapshotFlow { host }.first { it != Offset.Zero }
             androidx.compose.runtime.withFrameNanos { }
             androidx.compose.runtime.withFrameNanos { }
-            launch { ep.animateTo(1f, tween(DUR, easing = MOVE)) }
-            launch { er.animateTo(1f, tween(DUR, easing = RADIUS)) }
-            e.animateTo(1f, tween(DUR, easing = SCALE))
+            // пружины: быстрый старт, очень долгое мягкое торможение и лёгкий перелёт; движение чуть опережает масштаб
+            launch { ep.animateTo(1f, spring(.8f, 240f)) }
+            launch { er.animateTo(1f, tween(480, easing = RADIUS)) }
+            e.animateTo(1f, spring(.82f, 170f))
         } else if (mounted) {
             // закрытие — мягкое сворачивание обратно в кнопку (плавное торможение, без резкого щелчка в конце)
-            launch { ep.animateTo(0f, tween(CLOSE, easing = SOFT)) }
+            launch { ep.animateTo(0f, spring(1f, 260f)) }
             launch { er.animateTo(0f, tween(CLOSE, easing = SOFT)) }
-            e.animateTo(0f, tween(CLOSE, easing = SOFT))
+            e.animateTo(0f, spring(1f, 220f))
             mounted = false; PlusAnchor.open = false
         }
     }
