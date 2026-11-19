@@ -160,7 +160,7 @@ private class R(
     // масштаб оформления от размера виджета
     val k: Float = run {
         val (bw, bh) = when (size) { "2x2" -> 183f to 183f; "2x1" -> 183f to 90f; "1x2" -> 85f to 196f; "2x4" -> 183f to 408f; else -> 380f to 196f }
-        min(W / bw, H / bh).coerceIn(.8f, 1.3f)
+        min(W / bw, H / bh).coerceIn(.6f, 4f)
     }
 
     /* ---- данные ---- */
@@ -356,33 +356,38 @@ private class R(
         text(subT, cx - w2 / 2, y + f(2f), w2, f(11f), P.tx2, 400, 2, CTR)
     }
 
-    /** 2×2 без уроков сегодня: заголовок и все уроки следующего учебного дня. */
+    /** 2×2 без уроков сегодня: заголовок и все уроки следующего учебного дня, строки растянуты на всю высоту. */
     fun idleList(I: Sched.IdleInfo) {
         val pd = f(14f); val w2 = W - pd * 2
         val head = I.day.ifEmpty { I.title }
         val hh = text(if (P.kind == "ios") up(head) else head, pd, pd, w2, f(12f), P.accT, 700, 1,
             Layout.Alignment.ALIGN_NORMAL, if (P.kind == "ios") .02f else 0f)
         val top = pd + hh + f(8f)
-        val rowH = f(18f)
-        val avail = ((H - top - pd) / rowH).toInt().coerceAtLeast(1)
-        val items = if (nd.size <= avail) nd else nd.take(avail - 1)
+        val area = H - top - pd
+        val maxFit = (area / f(18f)).toInt().coerceAtLeast(1)
+        val items = if (nd.size <= maxFit) nd else nd.take(maxFit - 1)
         val more = nd.size - items.size
+        val slotsN = items.size + if (more > 0) 1 else 0
+        val rowH = min(area / slotsN, f(36f))
+        val g = (rowH / f(18f)).coerceIn(1f, 1.25f)
+        val totalH = rowH * slotsN
+        val y0 = top + ((area - totalH) / 2).coerceAtLeast(0f)
         items.forEachIndexed { i, sl ->
-            val cy = top + rowH * i + rowH / 2
-            circle(pd + f(3f), cy, f(3f), sub(sl).color.toInt())
-            val tx = pd + f(12f)
-            base(hm(sl.start), tx, midBase(cy, f(11f)), f(11f), P.tx2, 600)
-            val nx = tx + f(38f)
+            val cy = y0 + rowH * i + rowH / 2
+            circle(pd + f(3f) * g, cy, f(3f) * g, sub(sl).color.toInt())
+            val tx = pd + f(12f) * g
+            base(hm(sl.start), tx, midBase(cy, f(11f) * g), f(11f) * g, P.tx2, 600)
+            val nx = tx + f(38f) * g
             val r = roomShort(nd, nd.indexOf(sl))
-            val rw = if (r.isNotEmpty()) bigW(r, f(11f), 400) + f(6f) else 0f
+            val rw = if (r.isNotEmpty()) bigW(r, f(11f) * g, 400) + f(6f) else 0f
             val nw = W - pd - rw - nx
-            val h = th(name(sl), nw, f(12f), 700)
-            text(name(sl), nx, cy - h / 2, nw, f(12f), P.tx, 700)
-            if (r.isNotEmpty()) base(r, W - pd, midBase(cy, f(11f)), f(11f), P.tx2, 400, 0f, true)
+            val h = th(name(sl), nw, f(12f) * g, 700)
+            text(name(sl), nx, cy - h / 2, nw, f(12f) * g, P.tx, 700)
+            if (r.isNotEmpty()) base(r, W - pd, midBase(cy, f(11f) * g), f(11f) * g, P.tx2, 400, 0f, true)
         }
         if (more > 0) {
-            val cy = top + rowH * items.size + rowH / 2
-            base("+$more", pd + f(12f), midBase(cy, f(11f)), f(11f), P.tx2, 400)
+            val cy = y0 + rowH * items.size + rowH / 2
+            base("+$more", pd + f(12f) * g, midBase(cy, f(11f) * g), f(11f) * g, P.tx2, 400)
         }
     }
 

@@ -68,5 +68,21 @@ class RenderTest {
             }
             FileOutputStream(File(out, "board_${style}_${ph.name.lowercase()}.png")).use { board.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
+        // крупный экран (например, 360 dpi: виджеты в dp заметно больше макетных) — проверка масштабирования
+        for (style in styles) for (ph in listOf(Phase.LESSON, Phase.AFTER)) {
+            val s = AppState(style = style, iconSet = "fluent")
+            val n = nowOf(ph)
+            val big = mapOf("2x2" to (300f to 300f), "2x1" to (300f to 140f), "1x2" to (140f to 300f))
+            val board = Bitmap.createBitmap((460 * d).toInt(), (460 * d).toInt(), Bitmap.Config.ARGB_8888)
+            val c = Canvas(board)
+            c.drawColor(walls.getValue(style).second)
+            val pos = mapOf("2x2" to (10f to 10f), "2x1" to (10f to 320f), "1x2" to (320f to 10f))
+            for ((sz, wh) in big) {
+                val b = WRender.render(ctx, s, n, sz, wh.first, wh.second)
+                val (x, y) = pos.getValue(sz)
+                c.drawBitmap(b, x * d, y * d, null)
+            }
+            FileOutputStream(File(out, "board_${style}_${ph.name.lowercase()}_big.png")).use { board.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
     }
 }
