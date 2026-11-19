@@ -210,7 +210,7 @@ private class R(
         if (lines > 1) {   // самое длинное слово не должно ломаться посреди: чуть уменьшаем шрифт
             val q = tp(size, color, weight, ls)
             val longest = t.split(' ').maxOfOrNull { q.measureText(it) } ?: 0f
-            if (longest > w && longest > 0f) size = max(size0 * .78f, size0 * w / longest)
+            if (longest > w && longest > 0f) size = max(size0 * .66f, size0 * w / longest)
         }
         return StaticLayout.Builder.obtain(t, 0, t.length, tp(size, color, weight, ls), max(1, w.roundToInt()))
             .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setAlignment(align).setIncludePad(false).build()
@@ -443,7 +443,7 @@ private class R(
             val w = avail * wts[i] / tw
             val sel = lst.first + i == lst.hl
             rr(x, top, w, bot - top, f(18f), if (sel) P.cardSel else P.card)
-            val ip = f(10f)
+            val ip = f(8f)
             var y = top + f(10f)
             y += text(hm(sl.start), x + ip, y, w - ip * 2, f(11f), if (sel) P.acc else P.tx2, 700) + f(4f)
             icon(sl, x + ip, y, f(30f)); y += f(34f)
@@ -548,8 +548,9 @@ private class R(
         val lst = listFor(4)
         val lw = f(110f)
         var y = pd
-        y += text(up(dayWord()), pd, y, lw, f(11f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f)
-        base("${n.date.dayOfMonth}", pd, topBase(y + f(2f), f(44f)), f(44f), P.tx, 300)
+        val shownDate = if (showToday) n.date else (n.nextDay ?: n.date)
+        y += text(up(Tr.dayLong(lang, shownDate.dayOfWeek.value - 1)), pd, y, lw, f(11f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f)
+        base("${shownDate.dayOfMonth}", pd, topBase(y + f(2f), f(44f)), f(44f), P.tx, 300)
         val x = fSlot
         if (x != null) {
             val h3 = if (isCur) th(Tr.t(lang, "left", n.minutesLeft), lw, f(12f), 500) else if (minsOf(x) > 0) th(Tr.t(lang, "startsIn", minsOf(x)), lw, f(12f), 500) else 0f
@@ -638,7 +639,7 @@ private class R(
             val sel = lst.first + i == lst.hl
             val x = pd + (cw + gap) * i
             rr(x, top, cw, bot - top, if (sel) f(20f) else f(12f), if (sel) P.cardSel else P.card)
-            val ip = f(10f); val tc = if (sel) P.ink else P.tx
+            val ip = f(8f); val tc = if (sel) P.ink else P.tx
             var y = top + f(10f)
             y += text(hm(sl.start), x + ip, y, cw - ip * 2, f(12f), a(tc, .8f), 700) + f(4f)
             icon(sl, x + ip, y, f(28f)); y += f(32f)
