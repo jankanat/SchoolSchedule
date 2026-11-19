@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -148,11 +149,16 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         // ---- правая кнопка: «+» ----
         Box(Modifier.offset(x = maxWidth - circ, y = (pillH - circ) / 2).size(circ).plusAnchor()
             .graphicsLayer { val k = sR(); translationX = -dxR(); scaleX = k; scaleY = k; alpha = (k * 1.4f).coerceIn(0f, 1f) }
+            // мягкое свечение акцентного цвета под кнопкой
+            .drawBehind {
+                drawCircle(Brush.radialGradient(listOf(acc.copy(alpha = .38f), Color.Transparent), Offset(size.width / 2, size.height * .98f), size.width * .62f), radius = size.width * .62f, center = Offset(size.width / 2, size.height * .98f))
+            }
             .clip(CircleShape)
-            // мягкий белый блик сверху-слева (без кромки)
+            // мягкий блик: светлее сверху и по центру, к низу чуть насыщеннее (без кромки)
             .drawWithContent {
                 drawContent()
-                drawCircle(Brush.radialGradient(listOf(Color(0x40FFFFFF), Color(0x14FFFFFF), Color.Transparent), Offset(size.width * .32f, size.height * .2f), size.width * .62f))
+                drawCircle(Brush.radialGradient(listOf(Color(0x59FFFFFF), Color(0x1FFFFFFF), Color.Transparent), Offset(size.width * .5f, size.height * .12f), size.width * .78f))
+                drawCircle(Brush.verticalGradient(listOf(Color.Transparent, acc.copy(alpha = .22f)), startY = size.height * .55f, endY = size.height))
             }
             .press(CircleShape, scaleTo = .88f, enabled = rOn, onClick = onPlus), contentAlignment = Alignment.Center) {
             Icon(Ic.plus, null, tint = plusInk, modifier = Modifier.size(28.dp))

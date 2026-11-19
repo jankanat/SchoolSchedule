@@ -31,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -398,9 +399,15 @@ private fun IdleHero(n: Now, st: AppState, lang: String, shape: RoundedCornerSha
 private fun NowLabel(text: String, color: Color) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         // мягко пульсирующая точка «сейчас»
-        val pulse by androidx.compose.animation.core.rememberInfiniteTransition(label = "pl").animateFloat(.55f, 1f,
-            androidx.compose.animation.core.infiniteRepeatable(tween(1100), androidx.compose.animation.core.RepeatMode.Reverse), label = "plv")
-        Box(Modifier.size(8.dp).graphicsAlpha(pulse).clip(CircleShape).background(Color(0xFF4ADE80)))
+        // пульс — два вдоха раз в 20 секунд, а не вечный: вечная анимация перерисовывает весь экран 120 раз в секунду и сажает батарею
+        val pulse = remember { androidx.compose.animation.core.Animatable(1f) }
+        LaunchedEffect(Unit) {
+            while (true) {
+                repeat(2) { pulse.animateTo(.55f, tween(550)); pulse.animateTo(1f, tween(550)) }
+                kotlinx.coroutines.delay(20_000)
+            }
+        }
+        Box(Modifier.size(8.dp).graphicsLayer { alpha = pulse.value }.clip(CircleShape).background(Color(0xFF4ADE80)))
         Text(text, color = color, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 8.dp), maxLines = 1)
     }
 }
@@ -467,12 +474,23 @@ private fun Ring(p: Float, fg: Color, track: Color, w: androidx.compose.ui.unit.
     }
 }
 
+
+/** Фаза волны: бежит несколько секунд после появления/смены прогресса и замирает — без вечной анимации. */
+@Composable
+private fun restingPhase(key: Any?, periodMs: Int = 2400, activeMs: Int = 6000): androidx.compose.runtime.State<Float> {
+    val t = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(key) {
+        t.snapTo(0f)
+        t.animateTo(activeMs / periodMs.toFloat(), tween(activeMs, easing = androidx.compose.animation.core.LinearEasing))
+    }
+    return remember { androidx.compose.runtime.derivedStateOf { t.value % 1f } }
+}
+
 /** Волнистое кольцо прогресса (Material 3 Expressive), волна бежит по кругу. */
 @Composable
 private fun WavyRing(p: Float, fg: Color, track: Color, modifier: Modifier) {
     val a by animateFloatAsState(p.coerceIn(0f, 1f), tween(700), label = "wr")
-    val ph by androidx.compose.animation.core.rememberInfiniteTransition(label = "wr").animateFloat(0f, 1f,
-        androidx.compose.animation.core.infiniteRepeatable(tween(2400, easing = androidx.compose.animation.core.LinearEasing)), label = "wrp")
+    val ph by restingPhase((p * 100).toInt())
     Canvas(modifier) {
         val c = Offset(size.width / 2, size.height / 2)
         val R = size.minDimension / 2 - 8.dp.toPx()
@@ -809,8 +827,7 @@ fun CheckSquare(on: Boolean, onClick: () -> Unit) = AnimCheck(on, 22.dp, true, T
 /** Волнистая полоса прогресса Material 3 Expressive (используется в Pixel). */
 @Composable
 fun WavyProgress(progress: Float, active: Color, track: Color) {
-    val phase = androidx.compose.animation.core.rememberInfiniteTransition(label = "wave")
-        .animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(tween(1600, easing = androidx.compose.animation.core.LinearEasing)), label = "ph")
+    val phase = restingPhase((progress * 100).toInt(), 1600, 6000)
     Canvas(Modifier.fillMaxWidth().height(12.dp)) {
         val w = size.width; val cy = size.height / 2; val sw = 4.dp.toPx(); val amp = 2.6.dp.toPx(); val wl = 22.dp.toPx()
         val px = (w * progress).coerceIn(0f, w)

@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -114,9 +115,11 @@ fun Modifier.backdropBlur(backdrop: GraphicsLayer, blur: Dp, tint: Color, shape:
     var pos by remember { mutableStateOf(Offset.Zero) }
     val layer = rememberGraphicsLayer()
     return this.onGloballyPositioned { pos = it.positionInRoot() }.clip(shape).drawBehind {
-        if (blur > 0.dp) layer.renderEffect = BlurEffect(blur.toPx(), blur.toPx(), TileMode.Clamp)
-        layer.record { translate(-pos.x, -pos.y) { drawLayer(backdrop) } }
-        drawLayer(layer)
+        // фон записывается и размывается в половинном разрешении: пикселей в 4 раза меньше, на глаз то же самое
+        val hw = (size.width / 2f).toInt().coerceAtLeast(1); val hh = (size.height / 2f).toInt().coerceAtLeast(1)
+        if (blur > 0.dp) layer.renderEffect = BlurEffect(blur.toPx() / 2f, blur.toPx() / 2f, TileMode.Clamp)
+        layer.record(size = androidx.compose.ui.unit.IntSize(hw, hh)) { scale(.5f, Offset.Zero) { translate(-pos.x, -pos.y) { drawLayer(backdrop) } } }
+        scale(2f, Offset.Zero) { drawLayer(layer) }
         drawRect(tint)
     }
 }
