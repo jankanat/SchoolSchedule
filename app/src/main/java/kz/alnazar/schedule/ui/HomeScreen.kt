@@ -693,8 +693,8 @@ private fun HomeTasks(st: AppState, list: List<Hw>, today: LocalDate, lang: Stri
     val t = T
     val ui = LocalUi.current
     // Только что отмеченное задание не пропадает мгновенно: остаётся на своём месте ~1 с (видно, как рисуется галочка), потом плавно уезжает.
-    val linger = remember { androidx.compose.runtime.mutableStateMapOf<String, Linger>() }
-    val jobs = remember { mutableMapOf<String, kotlinx.coroutines.Job>() }
+    val linger = remember { androidx.compose.runtime.mutableStateMapOf<Long, Linger>() }
+    val jobs = remember { mutableMapOf<Long, kotlinx.coroutines.Job>() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val onToggle: (Hw) -> Unit = { h ->
         val ex = linger[h.id]
