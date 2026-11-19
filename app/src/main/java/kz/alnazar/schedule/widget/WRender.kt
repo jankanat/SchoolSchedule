@@ -184,6 +184,10 @@ private class R(
     fun dayWord() = Tr.dayLong(lang, n.date.dayOfWeek.value - 1)
     fun lessonsWord(list: List<Slot>) = Tr.plural(lang, "lessons", list.size)
 
+    /** Узкий виджет 1x2 во время урока показывает следующий урок («Далее»). */
+    fun slot12(): Slot? = if (n.phase == Phase.LESSON && n.next >= 0 && cfg.onLesson != "next") L.getOrNull(n.next) else fSlot
+    fun lab12(x: Slot) = if (x === fSlot) label else Tr.t(lang, "next")
+
     fun f(v: Float) = v * k
 
     /* ---- примитивы ---- */
@@ -201,9 +205,16 @@ private class R(
     fun tp(size: Float, color: Int, weight: Int, ls: Float = 0f) = TextPaint(Paint.ANTI_ALIAS_FLAG).also {
         it.textSize = size; it.color = color; it.typeface = typeface(fontBase, weight); it.letterSpacing = ls
     }
-    fun layout(t: String, w: Float, size: Float, color: Int, weight: Int, lines: Int, align: Layout.Alignment, ls: Float = 0f): StaticLayout =
-        StaticLayout.Builder.obtain(t, 0, t.length, tp(size, color, weight, ls), max(1, w.roundToInt()))
+    fun layout(t: String, w: Float, size0: Float, color: Int, weight: Int, lines: Int, align: Layout.Alignment, ls: Float = 0f): StaticLayout {
+        var size = size0
+        if (lines > 1) {   // самое длинное слово не должно ломаться посреди: чуть уменьшаем шрифт
+            val q = tp(size, color, weight, ls)
+            val longest = t.split(' ').maxOfOrNull { q.measureText(it) } ?: 0f
+            if (longest > w && longest > 0f) size = max(size0 * .78f, size0 * w / longest)
+        }
+        return StaticLayout.Builder.obtain(t, 0, t.length, tp(size, color, weight, ls), max(1, w.roundToInt()))
             .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setAlignment(align).setIncludePad(false).build()
+    }
     /** Нарисовать текст, вернуть высоту. */
     fun text(t: String, x: Float, y: Float, w: Float, size: Float, color: Int, weight: Int = 400, lines: Int = 1,
              align: Layout.Alignment = Layout.Alignment.ALIGN_NORMAL, ls: Float = 0f): Float {
@@ -468,10 +479,10 @@ private class R(
     }
 
     fun color12() {
-        val x = fSlot ?: return
+        val x = slot12() ?: return
         val pv = f(8f); val w = W - pv * 2
         var y = f(12f)
-        y += text(label, pv, y, w, f(12f), P.acc, 700, 1, CTR) + f(8f)
+        y += text(lab12(x), pv, y, w, f(12f), P.acc, 700, 1, CTR) + f(8f)
         val isz = min(f(40f), W - f(20f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
         text(name(x), pv, y, w, f(13f), P.tx, 800, 2, CTR)
         val r = room(L, L.indexOf(x))
@@ -567,10 +578,10 @@ private class R(
     }
 
     fun ios12() {
-        val x = fSlot ?: return
+        val x = slot12() ?: return
         val pv = f(12f); val ph = f(10f); val w = W - ph * 2
         var y = pv
-        y += text(up(label), ph, y, w, f(11f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f) + f(4f)
+        y += text(up(lab12(x)), ph, y, w, f(11f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f) + f(4f)
         text(hm(x.start), ph, y, w, f(24f), P.tx, 600)
         val r = room(L, L.indexOf(x))
         val h2 = th(r, w, f(12f), 500); val h1 = th(name(x), w, f(13f), 700, 2)
@@ -667,10 +678,10 @@ private class R(
     }
 
     fun pixel12() {
-        val x = fSlot ?: return
+        val x = slot12() ?: return
         val ph = f(8f); val w = W - ph * 2
         var y = f(18f)
-        y += text(label, ph, y, w, f(12f), P.accT, 600, 1, CTR, .02f) + f(8f)
+        y += text(lab12(x), ph, y, w, f(12f), P.accT, 600, 1, CTR, .02f) + f(8f)
         val isz = min(f(36f), W - f(24f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
         text(name(x), ph, y, w, f(12.5f), P.tx, 600, 2, CTR)
         val t = hm(x.start); val h = th(t, w, f(12f))
@@ -787,11 +798,11 @@ private class R(
     }
 
     fun origin12() {
-        val x = fSlot ?: return
+        val x = slot12() ?: return
         val pd = f(8f); val w = W - pd * 2
         var y = f(14f)
         val isz = min(f(44f), W - f(24f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
-        y += text(label, pd, y, w, f(12f), P.accT, 600, 1, CTR) + f(1f)
+        y += text(lab12(x), pd, y, w, f(12f), P.accT, 600, 1, CTR) + f(1f)
         text(name(x), pd, y, w, f(13f), P.tx, 700, 2, CTR)
         val t = hm(x.start); val ts = f(26f).coerceAtMost(W * .31f)
         base(t, W / 2 - bigW(t, ts, 200, -.03f) / 2, H - f(14f), ts, P.tx, 200, -.03f)
@@ -888,10 +899,10 @@ private class R(
     }
 
     fun oneui12() {
-        val x = fSlot ?: return
+        val x = slot12() ?: return
         val ph = f(8f); val w = W - ph * 2
         var y = f(14f)
-        y += text(label, ph, y, w, f(12f), P.accT, 700, 1, CTR) + f(12f)
+        y += text(lab12(x), ph, y, w, f(12f), P.accT, 700, 1, CTR) + f(12f)
         val isz = min(f(40f), W - f(24f)); icon(x, (W - isz) / 2, y, isz); y += isz + f(8f)
         text(name(x), ph, y, w, f(13f), P.tx, 700, 2, CTR)
         val t = hm(x.start); val h = th(t, w, f(16f), 700)
