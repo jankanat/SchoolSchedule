@@ -369,21 +369,21 @@ private class R(
         val more = nd.size - items.size
         val slotsN = items.size + if (more > 0) 1 else 0
         val rowH = min(area / slotsN, f(36f))
-        val g = (rowH / f(18f)).coerceIn(1f, 1.25f)
+        val g = (rowH / f(18f)).coerceIn(1f, 1.12f)
         val totalH = rowH * slotsN
         val y0 = top + ((area - totalH) / 2).coerceAtLeast(0f)
         items.forEachIndexed { i, sl ->
             val cy = y0 + rowH * i + rowH / 2
             circle(pd + f(3f) * g, cy, f(3f) * g, sub(sl).color.toInt())
-            val tx = pd + f(12f) * g
+            val tx = pd + f(11f) * g
             base(hm(sl.start), tx, midBase(cy, f(11f) * g), f(11f) * g, P.tx2, 600)
-            val nx = tx + f(38f) * g
+            val nx = tx + bigW("00:00", f(11f) * g, 600) + f(7f)
             val r = roomShort(nd, nd.indexOf(sl))
-            val rw = if (r.isNotEmpty()) bigW(r, f(11f) * g, 400) + f(6f) else 0f
+            val rw = if (r.isNotEmpty()) bigW(r, f(10.5f) * g, 400) + f(5f) else 0f
             val nw = W - pd - rw - nx
             val h = th(name(sl), nw, f(12f) * g, 700)
             text(name(sl), nx, cy - h / 2, nw, f(12f) * g, P.tx, 700)
-            if (r.isNotEmpty()) base(r, W - pd, midBase(cy, f(11f) * g), f(11f) * g, P.tx2, 400, 0f, true)
+            if (r.isNotEmpty()) base(r, W - pd, midBase(cy, f(10.5f) * g), f(10.5f) * g, P.tx2, 400, 0f, true)
         }
         if (more > 0) {
             val cy = y0 + rowH * items.size + rowH / 2
