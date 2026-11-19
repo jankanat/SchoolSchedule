@@ -59,7 +59,6 @@ class HwUi(
 class Subj4(val id: String?, val name: String, val emoji: String, val color: Long)
 class DueOpt(val label: String, val on: Boolean, val onClick: () -> Unit)
 
-private val T0 get() = T
 private fun HwUi.title() = Tr.t(lang, if (isNew) "hw_new" else "hw_edit")
 private fun HwUi.textLabel() = Tr.t(lang, if (kind == "hw") "hw_text" else "hw_note_text")
 
