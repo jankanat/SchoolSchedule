@@ -62,3 +62,10 @@ jobs:
           name: widget-render
           path: app/build/render/*.png
           if-no-files-found: warn
+      - uses: softprops/action-gh-release@v2
+        if: always()
+        with:
+          tag_name: render-${{ github.run_number }}
+          name: Проверка отрисовки ${{ github.run_number }}
+          prerelease: true
+          files: app/build/render/*.png
