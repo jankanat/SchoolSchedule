@@ -629,7 +629,8 @@ private class R(
         val pv = f(12f); val ph = f(10f); val w = W - ph * 2
         var y = pv
         y += text(up(lab12(x)), ph, y, w, f(11f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f) + f(4f)
-        y += text(hm(x.start), ph, y, w, f(28f), P.tx, 600)
+        val tsz = fit(hm(x.start), w, f(60f), f(28f), f(18f), 600, 1)
+        y += text(hm(x.start), ph, y, w, tsz, P.tx, 600)
         val r = room(L, L.indexOf(x))
         val h2 = th(r, w, f(13f), 500)
         val ns = fit(name(x), w, (H - pv - h2 - y) * .55f, f(22f), f(13f), 700, 2); val h1 = th(name(x), w, ns, 700, 2)
