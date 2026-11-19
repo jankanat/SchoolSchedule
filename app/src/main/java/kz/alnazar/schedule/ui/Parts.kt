@@ -40,6 +40,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.launch
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -561,3 +564,80 @@ fun AddButton(text: String, onClick: () -> Unit) {
 }
 
 @Suppress("unused") private fun keep(b: Brush) = b
+
+
+/* ===================== Галочки ===================== */
+
+private val TICK = listOf(Offset(5f, 12.5f), Offset(9.5f, 17f), Offset(19f, 7.5f))
+
+/** Галочка, которая «рисуется» штрихом (и стирается обратно). Размер — сторона квадрата, в который вписана галочка. */
+@Composable
+fun AnimTick(on: Boolean, color: Color, size: Dp, stroke: Dp = 2.2.dp, modifier: Modifier = Modifier) {
+    val p by animateFloatAsState(
+        if (on) 1f else 0f,
+        androidx.compose.animation.core.tween(if (on) 300 else 140, delayMillis = if (on) 90 else 0, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "tick",
+    )
+    androidx.compose.foundation.Canvas(modifier.size(size)) {
+        if (p <= 0.001f) return@Canvas
+        val k = this.size.minDimension / 24f
+        val a = TICK.map { Offset(it.x * k, it.y * k) }
+        val l1 = (a[1] - a[0]).getDistance(); val l2 = (a[2] - a[1]).getDistance()
+        val d = (l1 + l2) * p
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(a[0].x, a[0].y)
+            if (d <= l1) { val f = d / l1; lineTo(a[0].x + (a[1].x - a[0].x) * f, a[0].y + (a[1].y - a[0].y) * f) }
+            else { lineTo(a[1].x, a[1].y); val f = ((d - l1) / l2).coerceAtMost(1f); lineTo(a[1].x + (a[2].x - a[1].x) * f, a[1].y + (a[2].y - a[1].y) * f) }
+        }
+        drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    }
+}
+
+/**
+ * Галочка-переключатель для всех стилей: заливка вырастает из центра с пружиной, штрих галочки дорисовывается,
+ * коробочка слегка «подпрыгивает», по краю расходится тонкая волна. При снятии всё играется в обратную сторону.
+ */
+@Composable
+fun AnimCheck(on: Boolean, size: Dp, square: Boolean, ring: Color, onClick: () -> Unit) {
+    val t = T
+    val fill by animateFloatAsState(if (on) 1f else 0f, spring(.55f, 420f), label = "ckf")
+    val burst = remember { androidx.compose.animation.core.Animatable(0f) }
+    val pop = remember { androidx.compose.animation.core.Animatable(1f) }
+    var first by remember { mutableStateOf(true) }
+    LaunchedEffect(on) {
+        if (first) { first = false; return@LaunchedEffect }
+        if (on) {
+            launch { burst.snapTo(0f); burst.animateTo(1f, androidx.compose.animation.core.tween(520, easing = androidx.compose.animation.core.CubicBezierEasing(.05f, .7f, .1f, 1f))) }
+            pop.animateTo(1.18f, androidx.compose.animation.core.tween(90))
+            pop.animateTo(1f, spring(.4f, 450f))
+        } else {
+            burst.snapTo(0f)
+            pop.animateTo(.9f, androidx.compose.animation.core.tween(70))
+            pop.animateTo(1f, spring(.5f, 500f))
+        }
+    }
+    val shape = if (square) RoundedCornerShape(6.dp) else CircleShape
+    Box(
+        Modifier.size(size).graphicsLayer { scaleX = pop.value; scaleY = pop.value }
+            .press(shape, scaleTo = .85f, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val s = this.size.minDimension; val half = s / 2f
+            val fr = fill.coerceAtLeast(0f)
+            val border = androidx.compose.ui.graphics.lerp(ring.copy(alpha = .6f), t.acc, fr.coerceIn(0f, 1f))
+            val sw = 2.dp.toPx()
+            if (square) {
+                val cr = 6.dp.toPx()
+                drawRoundRect(border, Offset(sw / 2, sw / 2), Size(s - sw, s - sw), androidx.compose.ui.geometry.CornerRadius(cr), style = androidx.compose.ui.graphics.drawscope.Stroke(sw))
+                if (fr > 0f) { val inset = (1f - fr) * half; drawRoundRect(t.acc, Offset(inset, inset), Size((s - 2 * inset).coerceAtLeast(0f), (s - 2 * inset).coerceAtLeast(0f)), androidx.compose.ui.geometry.CornerRadius(cr * fr.coerceAtMost(1f)))}
+            } else {
+                drawCircle(border, half - sw / 2, style = androidx.compose.ui.graphics.drawscope.Stroke(sw))
+                if (fr > 0f) drawCircle(t.acc, half * fr)
+            }
+            val b = burst.value
+            if (b > 0f && b < 1f) drawCircle(t.acc.copy(alpha = (1f - b) * .55f), half * (1f + b * .75f), style = androidx.compose.ui.graphics.drawscope.Stroke(2.dp.toPx() * (1f - b) + .5f))
+        }
+        AnimTick(on, t.accTx, size * .62f, stroke = if (square) 2.2.dp else 2.4.dp)
+    }
+}

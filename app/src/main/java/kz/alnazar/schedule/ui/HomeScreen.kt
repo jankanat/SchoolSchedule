@@ -750,27 +750,11 @@ private fun toggleDone(h: Hw) {
 
 /** Кружок-галочка с пружинкой. */
 @Composable
-fun CheckCircle(on: Boolean, ring: Color, onClick: () -> Unit) {
-    val acc = T.acc
-    val bg by animateColorAsState(if (on) acc else Color.Transparent, tween(200), label = "cc")
-    val sc by animateFloatAsState(if (on) 1f else 0f, spring(.45f, 500f), label = "ccs")
-    Box(Modifier.size(26.dp).clip(CircleShape).background(bg).border(2.dp, if (on) acc else ring.copy(alpha = .6f), CircleShape)
-        .press(CircleShape, scaleTo = .85f, onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(Ic.check, null, tint = T.accTx, modifier = Modifier.size(16.dp).graphicsScale(sc))
-    }
-}
+fun CheckCircle(on: Boolean, ring: Color, onClick: () -> Unit) = AnimCheck(on, 26.dp, false, ring, onClick)
 
 /** Квадратная галочка Material. */
 @Composable
-fun CheckSquare(on: Boolean, onClick: () -> Unit) {
-    val t = T
-    val bg by animateColorAsState(if (on) t.acc else Color.Transparent, tween(200), label = "cs")
-    val sc by animateFloatAsState(if (on) 1f else 0f, spring(.45f, 500f), label = "css")
-    val shape = RoundedCornerShape(6.dp)
-    Box(Modifier.size(22.dp).clip(shape).background(bg).border(2.dp, if (on) t.acc else t.tx2, shape).press(shape, onClick = onClick), contentAlignment = Alignment.Center) {
-        Icon(Ic.check, null, tint = t.accTx, modifier = Modifier.size(15.dp).graphicsScale(sc))
-    }
-}
+fun CheckSquare(on: Boolean, onClick: () -> Unit) = AnimCheck(on, 22.dp, true, T.tx2, onClick)
 
 /** Волнистая полоса прогресса Material 3 Expressive (используется в Pixel). */
 @Composable

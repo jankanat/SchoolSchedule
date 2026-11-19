@@ -69,10 +69,10 @@ fun StyleNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
     when (T.nav) {
         "island" -> LiquidDock(tabs, pager, backdrop, modifier, onPlus, onSettings)
         "glass", "origin" -> {
-            // без перелёта: отрицательный отступ в Compose — исключение
-            val endPad by animateDpAsState(if (showPlus) 80.dp else 0.dp, tween(420, easing = androidx.compose.animation.core.CubicBezierEasing(.05f, .7f, .1f, 1f)), label = "navEnd")
+            // Ширина меню не меняется (иначе каждый кадр пересчитывается стекло и всё лагает): оно только плавно съезжает к центру.
+            val shift by animateDpAsState(if (showPlus) 0.dp else 40.dp, tween(460, easing = androidx.compose.animation.core.CubicBezierEasing(.05f, .7f, .1f, 1f)), label = "navShift")
             Box(modifier.fillMaxWidth()) {
-                GlassNav(tabs, pager, backdrop, Modifier.padding(end = endPad.coerceAtLeast(0.dp)), accent = if (T.nav == "origin") Color(0xFF4C8DFF) else null)
+                GlassNav(tabs, pager, backdrop, Modifier.padding(end = 80.dp).offset { androidx.compose.ui.unit.IntOffset(shift.roundToPx(), 0) }, accent = if (T.nav == "origin") Color(0xFF4C8DFF) else null)
                 SidePop(showPlus, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 14.dp, bottom = 14.dp)) {
                     SideGlassBtn(Ic.plus, backdrop, Modifier, 70.dp, onPlus)
                 }

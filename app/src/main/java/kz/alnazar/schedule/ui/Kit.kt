@@ -258,7 +258,7 @@ fun M3Switch(on: Boolean) {
         Box(
             Modifier.offset(x = x + (24.dp - sz) / 2, y = (32.dp - sz) / 2).size(sz).background(thumb, CircleShape),
             contentAlignment = Alignment.Center,
-        ) { if (on) Text("✓", color = t.acc, fontSize = 12.sp, fontWeight = FontWeight.Bold) }
+        ) { AnimTick(on, t.acc, 14.dp, 2.dp) }
     }
 }
 
@@ -386,7 +386,11 @@ fun Chip(label: String, on: Boolean, onClick: () -> Unit) {
                 .tap(onClick = onClick).padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            if (on) Text("✓", color = t.onSecCont, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            androidx.compose.animation.AnimatedVisibility(on, enter = androidx.compose.animation.expandHorizontally(spring(.7f, 500f)) + androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.shrinkHorizontally() + androidx.compose.animation.fadeOut()) {
+                var shown by remember { mutableStateOf(false) }
+                androidx.compose.runtime.LaunchedEffect(Unit) { shown = true }
+                AnimTick(shown, t.onSecCont, 16.dp, 2.dp)
+            }
             Text(label, color = if (on) t.onSecCont else t.tx2, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
         }
         return

@@ -171,8 +171,6 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
                     hover = idxAt(touchX)
                     scope.launch { press.animateTo(.94f, spring(.6f, 500f)) }
                     scope.launch { glowA.animateTo(1f, tween(140)) }
-                    scope.launch { absorb.animateTo(1f, tween(600, easing = DECEL)) }
-                    scope.launch { move.animateTo(1f, spring(.8f, 900f)) }
                     var cancelled = false
                     while (true) {
                         val ev = awaitPointerEvent()
@@ -189,8 +187,6 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
                     hover = -1
                     scope.launch { press.animateTo(1f, spring(.45f, 380f)) }
                     scope.launch { glowA.animateTo(0f, tween(380)) }
-                    scope.launch { absorb.animateTo(0f, tween(560, easing = DECEL)) }
-                    scope.launch { move.animateTo(0f, spring(.62f, 420f)) }
                     scope.launch { drag.animateTo(0f, spring(.55f, 380f)) }
                 }
             },

@@ -162,13 +162,9 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp),
         ) {
             if (h.kind == "hw") {
-                val c by animateColorAsState(if (h.done) t.acc else Color.Transparent, label = "chk")
-                Box(
-                    Modifier.size(24.dp).clip(CircleShape).background(c)
-                        .border(2.dp, if (h.done) t.acc else t.tx2, CircleShape)
-                        .tap { Store.update(ctx) { s -> s.copy(hw = s.hw.map { if (it.id == h.id) it.copy(done = !it.done) else it }) } },
-                    contentAlignment = Alignment.Center,
-                ) { if (h.done) Text("✓", color = t.accTx, fontSize = 14.sp, fontWeight = FontWeight.Bold) }
+                AnimCheck(h.done, 24.dp, false, t.tx2) {
+                    Store.update(ctx) { s -> s.copy(hw = s.hw.map { if (it.id == h.id) it.copy(done = !it.done) else it }) }
+                }
             }
             val v = h.subj?.let { Sched.subj(st, it, lang) }
             if (v != null) Tile(v.emoji, v.color, 40.dp)
