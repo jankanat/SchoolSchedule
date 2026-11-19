@@ -233,7 +233,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
     val scope = rememberCoroutineScope()
     val drop = remember { Drop() }
     val hostView = LocalView.current
-    androidx.compose.runtime.DisposableEffect(hostView) { onDispose { hostView.isHapticFeedbackEnabled = true } }
+    androidx.compose.runtime.DisposableEffect(hostView) { onDispose { hostView.isHapticFeedbackEnabled = true; hostView.rootView.isHapticFeedbackEnabled = true } }
     var pressed by remember { mutableStateOf(false) }
     var grabbing by remember { mutableStateOf(false) }
     val pagerDragged by pager.interactionSource.collectIsDraggedAsState()
@@ -296,7 +296,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
             Modifier.fillMaxSize().pointerInput(navW) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    hostView.isHapticFeedbackEnabled = false
+                    hostView.isHapticFeedbackEnabled = false; hostView.rootView.isHapticFeedbackEnabled = false
                     pressed = true; drop.wake++
                     val x0 = down.position.x; val y0 = down.position.y
                     val ex = drop.x
@@ -304,7 +304,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                     val within = x0 / dpx in (ex - 2f)..(ex + baseW + 2f)
                     var dragging = false
                     while (true) {
-                        val ev = awaitPointerEvent()
+                        val ev = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
                         val c = ev.changes.firstOrNull { it.id == down.id } ?: break
                         if (!c.pressed) break
                         val dx = c.position.x - x0
@@ -318,7 +318,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                             c.consume()
                         }
                     }
-                    pressed = false; grabbing = false; drop.syt = 0f; drop.wake++; hostView.isHapticFeedbackEnabled = true
+                    pressed = false; grabbing = false; drop.syt = 0f; drop.wake++; hostView.isHapticFeedbackEnabled = true; hostView.rootView.isHapticFeedbackEnabled = true
                     if (dragging) select(((drop.x - btnX(0)) / btnW).roundToInt())
                     else select(((x0 / dpx - NAV_PAD) / btnW).toInt())
                 }
