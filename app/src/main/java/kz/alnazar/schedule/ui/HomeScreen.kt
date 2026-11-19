@@ -673,7 +673,7 @@ private fun GlassDigits(text: String, modifier: Modifier) {
             clipPath(path) {
                 // обои сквозь стекло: увеличены относительно центра цифр и ярче
                 scale(1.08f, pivot = Offset(gw / 2f, gh / 2f)) {
-                    translate(-pos.x - dx, -pos.y - dy) { drawStyleWall("origin", screenW, screenH, boost = 1.9f) }
+                    translate(-pos.x - dx, -pos.y - dy) { drawStyleWall("origin", screenW, screenH, boost = 1.6f, sharp = false) }
                 }
                 drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = .16f), Color.White.copy(alpha = .04f))), size = Size(gw, gh))
             }

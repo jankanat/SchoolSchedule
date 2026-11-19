@@ -1,6 +1,7 @@
 package kz.alnazar.schedule.ui
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -47,12 +48,15 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import kotlin.math.min
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /** Где на экране находится кнопка «+», из которой «вырастает» окно. */
 object PlusAnchor {
     var coords: LayoutCoordinates? = null
     var rect: Rect? = null
+    /** Пока окно открыто (и сворачивается), настоящая кнопка «+» спрятана — вместо неё само окно. */
+    var open by mutableStateOf(false)
     /** Запоминает положение кнопки в момент нажатия. */
     fun capture() { rect = coords?.takeIf { it.isAttached }?.boundsInRoot() }
 }
@@ -66,11 +70,20 @@ fun Modifier.plusAnchor(): Modifier = this.onGloballyPositioned { PlusAnchor.coo
 @Composable
 fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val t = T
-    val e = remember { Animatable(0f) }
+    // Как открытие приложения в HyperOS / ColorOS / iOS: движение к центру быстрое, а масштаб растёт медленнее (на половине пути ~ четверть размера)
+    val ep = remember { Animatable(0f) }   // движение
+    val e = remember { Animatable(0f) }    // размер, форма, содержимое
     var mounted by remember { mutableStateOf(false) }
     LaunchedEffect(visible) {
-        if (visible) { mounted = true; e.animateTo(1f, spring(.74f, 300f)) }
-        else if (mounted) { e.animateTo(0f, tween(320, easing = FastOutSlowInEasing)); mounted = false }
+        if (visible) {
+            PlusAnchor.open = true; mounted = true
+            launch { ep.animateTo(1f, tween(520, easing = CubicBezierEasing(.1f, .8f, .2f, 1f))) }
+            e.animateTo(1f, tween(520, easing = CubicBezierEasing(.25f, .35f, .2f, 1f)))
+        } else if (mounted) {
+            launch { ep.animateTo(0f, tween(400, easing = CubicBezierEasing(.3f, 0f, .2f, 1f))) }
+            e.animateTo(0f, tween(400, easing = CubicBezierEasing(.3f, 0f, .2f, 1f)))
+            mounted = false; PlusAnchor.open = false
+        }
     }
     if (!mounted) return
     val den = LocalDensity.current
@@ -83,7 +96,8 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
     val c0 = when {
         t.nav == "m3" -> Color(0xFFFF8A80)
         t.id == "color" -> Color(0xFF4DDB80)
-        else -> Color(0x4DFFFFFF)
+        t.id == "ios26" -> Color(0x66302F3C)
+        else -> Color(0x40FFFFFF)
     }
     val plusTint = when { t.nav == "m3" -> Color(0xFF4A0E0B); t.id == "color" -> Color(0xFF05230F); else -> t.tx }
     val marginPx = with(den) { 24.dp.toPx() }
@@ -107,7 +121,7 @@ fun BoxScope.PlusWindow(visible: Boolean, onDismiss: () -> Unit, content: @Compo
                 })
             },
             modifier = Modifier
-                .offset { IntOffset(((ac.x - host.x) * (1f - e.value)).roundToInt(), ((ac.y - host.y) * (1f - e.value)).roundToInt()) }
+                .offset { IntOffset(((ac.x - host.x) * (1f - ep.value)).roundToInt(), ((ac.y - host.y) * (1f - ep.value)).roundToInt()) }
                 .graphicsLayer {
                     val v = e.value
                     shadowElevation = 28.dp.toPx() * v.coerceIn(0f, 1f)

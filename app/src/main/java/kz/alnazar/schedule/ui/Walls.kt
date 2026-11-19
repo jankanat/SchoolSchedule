@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.toArgb
  * «Обои» стилей, которые рисуются кодом: OriginOS 7 (тёплые дуги) и One UI 9.5 (мягкий сиреневый изгиб).
  * Рисуются в координатах экрана (w×h); boost — ярче (для стеклянных цифр, сквозь которые видно фон).
  */
-fun DrawScope.drawStyleWall(id: String, w: Float, h: Float, boost: Float = 1f) {
+fun DrawScope.drawStyleWall(id: String, w: Float, h: Float, boost: Float = 1f, sharp: Boolean = true) {
     val sx = w / 412f; val sy = h / 915f
     fun p(x: Float, y: Float) = Offset(x * sx, y * sy)
     when (id) {
@@ -26,9 +26,9 @@ fun DrawScope.drawStyleWall(id: String, w: Float, h: Float, boost: Float = 1f) {
             val top = Path().apply { moveTo(p(-40f, 420f).x, p(-40f, 420f).y); cubicTo(p(0f, 90f).x, p(0f, 90f).y, p(412f, 90f).x, p(412f, 90f).y, p(452f, 420f).x, p(452f, 420f).y) }
             val bot = Path().apply { moveTo(p(-40f, 600f).x, p(-40f, 600f).y); cubicTo(p(10f, 960f).x, p(10f, 960f).y, p(402f, 960f).x, p(402f, 960f).y, p(452f, 600f).x, p(452f, 600f).y) }
             glowStroke(top, Color(0xFFFF9A4A), 36f * sx, 28f * sx, .45f * boost)
-            glowStroke(top, Color(0xFFFFC58A), 3f * sx, 6f * sx, .8f * boost)
+            if (sharp) glowStroke(top, Color(0xFFFFC58A), 3f * sx, 6f * sx, .8f * boost)
             glowStroke(bot, Color(0xFFFF8A3A), 30f * sx, 28f * sx, .35f * boost)
-            glowStroke(bot, Color(0xFFFFB27A), 2.5f * sx, 6f * sx, .6f * boost)
+            if (sharp) glowStroke(bot, Color(0xFFFFB27A), 2.5f * sx, 6f * sx, .6f * boost)
         }
         "oneui" -> {
             drawRect(Brush.linearGradient(listOf(Color(0xFF1D1838), Color(0xFF272056), Color(0xFF1A1735)), Offset(0f, 0f), Offset(w * .3f, h)))

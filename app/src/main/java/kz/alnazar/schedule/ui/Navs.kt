@@ -100,7 +100,7 @@ fun SideGlassBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, backdrop
     val t = T
     val shape = androidx.compose.foundation.shape.CircleShape
     val tint = when (t.id) { "oneui" -> Color(0x2EFFFFFF); "origin" -> Color(0x33FFFFFF); else -> Color(0x40302F3C) }
-    Box(modifier.size(size).plusAnchor().press(shape, scaleTo = .9f, onClick = onClick).backdropBlur(backdrop, 14.dp, tint, shape)
+    Box(modifier.size(size).plusAnchor().graphicsLayer { alpha = if (PlusAnchor.open) 0f else 1f }.press(shape, scaleTo = .9f, onClick = onClick).backdropBlur(backdrop, 14.dp, tint, shape)
         .then(if (t.id == "oneui") Modifier else Modifier.border(1.dp, Brush.linearGradient(listOf(Color(0xB3FFFFFF), Color(0x14FFFFFF), Color(0x80FFFFFF))), shape)),
         contentAlignment = Alignment.Center) {
         Icon(icon, null, tint = t.tx, modifier = Modifier.size(28.dp))
@@ -175,7 +175,7 @@ fun PixelNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
         SidePop(showPlus) {
             Row {
                 Spacer(Modifier.width(10.dp))
-                Box(Modifier.size(64.dp).plusAnchor().shadow(10.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color(0xFFFF8A80))
+                Box(Modifier.size(64.dp).plusAnchor().graphicsLayer { alpha = if (PlusAnchor.open) 0f else 1f }.shadow(10.dp, RoundedCornerShape(22.dp)).clip(RoundedCornerShape(22.dp)).background(Color(0xFFFF8A80))
                     .press(RoundedCornerShape(22.dp), scaleTo = .9f, onClick = onPlus), contentAlignment = Alignment.Center) {
                     Icon(Ic.plus, null, tint = Color(0xFF4A0E0B), modifier = Modifier.size(28.dp))
                 }

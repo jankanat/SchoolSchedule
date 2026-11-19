@@ -106,6 +106,7 @@ class Drop {
     var g by mutableFloatStateOf(0f)          // увеличение 0..1
     var d by mutableFloatStateOf(0f)          // деформация от скорости
     var lens by mutableFloatStateOf(0f)       // сила преломления 0..1
+    var hl by mutableFloatStateOf(0f)         // яркость бликов по краю: в покое плавно гаснут
     var vx = 0f; var tx = 0f; var gv = 0f; var gt = 0f; var dv = 0f
     var follow = false; var lastF = 0L; var moving = false; var dir = 0f
     var wake by mutableStateOf(0)
@@ -123,7 +124,7 @@ class Drop {
 
     fun busy(active: Boolean, lensTarget: Float): Boolean =
         active || abs(tx - x) > .2f || abs(vx) > 3f || abs(g - gt) > .003f || abs(gv) > .02f ||
-            abs(d) > .002f || abs(dv) > .02f || abs(lens - lensTarget) > .01f
+            abs(d) > .002f || abs(dv) > .02f || abs(lens - lensTarget) > .01f || abs(hl - lensTarget) > .01f
 
     fun step(dtIn: Float, nowMs: Long, grabbing: Boolean, active: Boolean) {
         val dt = dtIn.coerceIn(.001f, .032f)
@@ -138,7 +139,8 @@ class Drop {
         val lt = if (active || moving) 1f else 0f
         val tau = if (lt > lens) .04f else .09f
         lens += (lt - lens) * (1f - kotlin.math.exp(-dt / tau))
-        if (!busy(false, lt) && !follow) { x = tx; vx = 0f; d = 0f; dv = 0f; g = gt; gv = 0f; lens = lt }
+        hl += (lt - hl) * (1f - kotlin.math.exp(-dt / (if (lt > hl) .05f else .3f)))
+        if (!busy(false, lt) && !follow) { x = tx; vx = 0f; d = 0f; dv = 0f; g = gt; gv = 0f; lens = lt; hl = lt }
     }
 }
 
@@ -381,7 +383,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                 }
                 // блики по диагонали 45°: сверху-слева и снизу-справа
                 Box(
-                    Modifier.fillMaxSize().border(
+                    Modifier.fillMaxSize().graphicsLayer { alpha = drop.hl.coerceIn(0f, 1f) }.border(
                         1.2.dp,
                         Brush.linearGradient(
                             0f to Color(0xD9FFFFFF), .14f to Color(0x59FFFFFF), .30f to Color.Transparent,

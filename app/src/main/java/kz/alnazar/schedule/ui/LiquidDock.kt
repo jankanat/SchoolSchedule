@@ -63,6 +63,8 @@ import kotlin.math.abs
 
 /** Кривая как на картинке пользователя: резкий старт, долгое плавное затухание. */
 private val DECEL = CubicBezierEasing(.05f, .7f, .1f, 1f)
+/** Та же кривая, но с лёгким перелётом в конце — кнопки чуть пружинят. */
+private val BOUNCY = CubicBezierEasing(.05f, .72f, .12f, 1.09f)
 
 /**
  * Нижнее меню ColorOS 17: слева круглая кнопка настроек, в центре стеклянная капсула с вкладками, справа зелёная «+».
@@ -91,8 +93,8 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
     val showL = remember { Animatable(if (page == 0 || page == 3) 1f else 0f) }
     val showR = remember { Animatable(if (page == 0 || page == 2) 1f else 0f) }
     LaunchedEffect(page) {
-        launch { showL.animateTo(if (page == 0 || page == 3) 1f else 0f, spring(.64f, 640f)) }
-        launch { showR.animateTo(if (page == 0 || page == 2) 1f else 0f, spring(.64f, 640f)) }
+        launch { showL.animateTo(if (page == 0 || page == 3) 1f else 0f, tween(460, easing = BOUNCY)) }
+        launch { showR.animateTo(if (page == 0 || page == 2) 1f else 0f, tween(460, easing = BOUNCY)) }
     }
 
     val circ = 62.dp; val gap = 8.dp; val pillH = 68.dp
@@ -110,7 +112,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         val dxL = maxOf(move.value, hideL) * travel
         val dxR = maxOf(move.value, hideR) * travel
         val sL = ((1f - absorb.value) * showL.value).coerceIn(0f, 1f)
-        val sR = ((1f - absorb.value) * showR.value).coerceIn(0f, 1f)
+        val sR = if (PlusAnchor.open) 0f else ((1f - absorb.value) * showR.value).coerceIn(0f, 1f)
         val stretch = drag.value
         val pillScaleX = press.value * (1f + abs(stretch) / with(den) { pillW.toPx() } * .06f)
         val pillTx = rubberX(stretch, with(den) { 8.dp.toPx() })
