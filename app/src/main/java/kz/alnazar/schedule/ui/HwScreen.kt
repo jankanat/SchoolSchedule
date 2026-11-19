@@ -192,7 +192,7 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
 }
 
 @Composable
-private fun Thumb(name: String, size: Int, onClick: (() -> Unit)? = null) {
+internal fun Thumb(name: String, size: Int, onClick: (() -> Unit)? = null) {
     val bmp = remember(name) { Files.thumb(Files.photo(name))?.asImageBitmap() }
     var open by remember { mutableStateOf(false) }
     Box(
@@ -245,59 +245,30 @@ fun ColumnScope.HwSheet(id: Long?, kind0: String, subj0: String? = null, due0: L
         uris.forEach { u -> Files.savePhoto(ctx, u)?.let { photos += it } }
     }
 
-    SheetTitle(Tr.t(lang, if (old == null) "hw_new" else "hw_edit"))
-    if (old == null) Seg(listOf("hw" to Tr.t(lang, "type_hw"), "note" to Tr.t(lang, "type_note")), kind) { kind = it }
-
-    // предмет: сначала предметы программы, потом свои
-    Lab(Tr.t(lang, "subject"))
     val ids = remember { Catalog.programSubjects(st.program, st.grade) + st.custom.map { it.id } }
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        if (kind == "note") SubjChip(null, Tr.t(lang, "hw_no_subj"), "🗒️", 0xFF8E8E93, subj == null) { subj = null }
-        (listOfNotNull(subj?.takeIf { it !in ids }) + ids).forEach { sid ->
-            val v = Sched.subj(st, sid, lang)
-            SubjChip(sid, v.name, v.emoji, v.color, subj == sid) {
-                subj = sid
-                if (!dueTouched) due = Sched.nextLessonDate(st, sid, today)
-            }
-        }
-    }
-
-    Lab(Tr.t(lang, if (kind == "hw") "hw_text" else "hw_note_text"))
-    Field(text, { text = it.take(2000) }, "", lines = 3)
-
-    if (kind == "hw") {
-        Lab(Tr.t(lang, "hw_due"))
-        val next = subj?.let { Sched.nextLessonDate(st, it, today) }
-        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (next != null) Chip(Tr.t(lang, "hw_next_lesson") + " · " + Sched.dueLabel(lang, today, next), due == next) { due = next; dueTouched = true }
-            val tm = today.plusDays(1)
-            if (next != tm) Chip(Tr.t(lang, "tomorrow"), due == tm) { due = tm; dueTouched = true }
-            val other = due != null && due != next && due != tm
-            Chip(if (other) Sched.dueLabel(lang, today, due!!) else Tr.t(lang, "hw_pick_date") + "…", other) { picker = true }
-        }
-    }
-
-    Lab(Tr.t(lang, "hw_photo"))
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        photos.toList().forEach { p ->
-            Box {
-                Thumb(p, 64)
-                Box(
-                    Modifier.align(Alignment.TopEnd).padding(3.dp).size(20.dp).clip(CircleShape).background(Color(0xCC000000))
-                        .tap { photos.remove(p); if (old?.photos?.contains(p) != true) Files.deletePhotos(listOf(p)) },
-                    contentAlignment = Alignment.Center,
-                ) { Text("✕", color = Color.White, fontSize = 11.sp) }
-            }
-        }
-        Btn(Tr.t(lang, "hw_camera"), kind = BtnKind.Sec, small = true, icon = Ic.cam) { runCatching { cam.launch(camUri) } }
-        Btn(Tr.t(lang, "hw_gallery"), kind = BtnKind.Sec, small = true, icon = Ic.image) {
-            gal.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }
-    }
-
-    Btns {
-        val ok = if (kind == "hw") subj != null else (text.isNotBlank() || photos.isNotEmpty())
-        Btn(Tr.t(lang, "save"), Modifier.weight(1f), enabled = ok) {
+    val subjects = (if (kind == "note") listOf(Subj4(null, Tr.t(lang, "hw_no_subj"), "🗒️", 0xFF8E8E93)) else emptyList()) +
+        (listOfNotNull(subj?.takeIf { it !in ids }) + ids).map { sid -> Sched.subj(st, sid, lang).let { v -> Subj4(sid, v.name, v.emoji, v.color) } }
+    val next = subj?.let { Sched.nextLessonDate(st, it, today) }
+    val tm = today.plusDays(1)
+    val other = due != null && due != next && due != tm
+    val dueOpts = listOfNotNull(
+        next?.let { n -> DueOpt(Tr.t(lang, "hw_next_lesson") + " · " + Sched.dueLabel(lang, today, n), due == n) { due = n; dueTouched = true } },
+        if (next != tm) DueOpt(Tr.t(lang, "tomorrow"), due == tm) { due = tm; dueTouched = true } else null,
+        DueOpt(if (other) Sched.dueLabel(lang, today, due!!) else Tr.t(lang, "hw_pick_date") + "…", other) { picker = true },
+    )
+    val ok = if (kind == "hw") subj != null else (text.isNotBlank() || photos.isNotEmpty())
+    HwForm(HwUi(
+        isNew = old == null, lang = lang,
+        kind = kind, setKind = { kind = it },
+        subj = subj, setSubj = { sid -> subj = sid; if (sid != null && !dueTouched) due = Sched.nextLessonDate(st, sid, today) }, subjects = subjects,
+        text = text, setText = { text = it },
+        dueOptions = dueOpts,
+        photos = photos.toList(),
+        removePhoto = { p -> photos.remove(p); if (old?.photos?.contains(p) != true) Files.deletePhotos(listOf(p)) },
+        camera = { runCatching { cam.launch(camUri) } },
+        gallery = { gal.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+        canSave = ok,
+        save = {
             val h = Hw(
                 id = old?.id ?: System.currentTimeMillis(), kind = kind, subj = subj, text = text.trim(),
                 due = if (kind == "hw") due?.toString() else null, done = old?.done ?: false,
@@ -307,13 +278,10 @@ fun ColumnScope.HwSheet(id: Long?, kind0: String, subj0: String? = null, due0: L
             old?.photos?.filter { it !in photos }?.let { Files.deletePhotos(it) }
             Store.update(ctx) { s -> s.copy(hw = if (old == null) s.hw + h else s.hw.map { if (it.id == h.id) h else it }) }
             ui.close()
-        }
-        if (old != null) Btn("", kind = BtnKind.Danger, icon = Ic.trash) {
-            Files.deletePhotos(old.photos)
-            Store.update(ctx) { s -> s.copy(hw = s.hw.filterNot { it.id == old.id }) }
-            ui.close()
-        }
-    }
+        },
+        delete = old?.let { o -> { Files.deletePhotos(o.photos); Store.update(ctx) { s -> s.copy(hw = s.hw.filterNot { it.id == o.id }) }; ui.close() } },
+        close = { ui.close() },
+    ))
 
     if (picker) {
         val ps = rememberDatePickerState(

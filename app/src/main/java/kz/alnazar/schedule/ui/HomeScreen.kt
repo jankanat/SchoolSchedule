@@ -164,8 +164,10 @@ fun HomeScreen(st: AppState, clock: Long) {
     val hero = remember(n) { heroOf(st, n, lang) }
     val week = remember(st, n.date) { Sched.week(st, n.date) }
     val idleDay = n.phase !in listOf(Phase.LESSON, Phase.BREAK, Phase.BEFORE)
-    var showNext by rememberSaveable(n.date, idleDay) { mutableStateOf(idleDay && n.nextDay != null) }
-    val listDate = if (showNext) n.nextDay ?: n.date else n.date
+    // Ближайший учебный день в Now заполнен только в простое, а переключатель «Завтра» нужен и во время уроков
+    val nextD = remember(st, n.date) { n.nextDay ?: Sched.nextSchoolDay(st, n.date) }
+    var showNext by rememberSaveable(n.date, idleDay) { mutableStateOf(idleDay && nextD != null) }
+    val listDate = if (showNext) nextD ?: n.date else n.date
     val items = remember(st, n, listDate) { feedItems(st, listDate, lang, if (listDate == n.date) n else null, false) }
     val todo = remember(st) { Sched.todo(st) }
     val today = n.date

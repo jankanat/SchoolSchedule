@@ -108,28 +108,33 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         val cur = if (hover >= 0) hover else pager.targetPage
         // сдвиг круга к точке внутри капсулы
         val travel = with(den) { (gap + circ / 2 + 20.dp).toPx() }
-        val hideL = 1f - showL.value; val hideR = 1f - showR.value
-        val dxL = maxOf(move.value, hideL) * travel
-        val dxR = maxOf(move.value, hideR) * travel
-        val sL = ((1f - absorb.value) * showL.value).coerceIn(0f, 1f)
-        val sR = if (PlusAnchor.open) 0f else ((1f - absorb.value) * showR.value).coerceIn(0f, 1f)
-        val stretch = drag.value
-        val pillScaleX = press.value * (1f + abs(stretch) / with(den) { pillW.toPx() } * .06f)
-        val pillTx = rubberX(stretch, with(den) { 8.dp.toPx() })
+        // Значения анимаций читаем только внутри graphicsLayer/draw-лямбд — тогда каждый кадр перерисовывается слой, а не пересобирается всё меню (это и был лаг)
+        val pillWpx = with(den) { pillW.toPx() }
+        val rubberPx = with(den) { 8.dp.toPx() }
+        fun dxL() = maxOf(move.value, 1f - showL.value) * travel
+        fun dxR() = maxOf(move.value, 1f - showR.value) * travel
+        fun sL() = ((1f - absorb.value) * showL.value).coerceIn(0f, 1f)
+        fun sR() = if (PlusAnchor.open) 0f else ((1f - absorb.value) * showR.value).coerceIn(0f, 1f)
+        fun pillSX() = press.value * (1f + abs(drag.value) / pillWpx * .06f)
+        fun pillTx() = rubberX(drag.value, rubberPx)
+        val lOn by remember { androidx.compose.runtime.derivedStateOf { ((1f - absorb.value) * showL.value) > .6f } }
+        val rOn by remember { androidx.compose.runtime.derivedStateOf { !PlusAnchor.open && ((1f - absorb.value) * showR.value) > .6f } }
+        val acc = t.acc
+        val plusInk = androidx.compose.ui.graphics.lerp(acc, Color.Black, .82f)
 
         // ---- «жидкий» слой: капсула и кружки сливаются (размытие + порог прозрачности) ----
         Canvas(Modifier.fillMaxSize().graphicsLayer {
             renderEffect = gooEffect(.20f, .20f, .22f, 9.dp.toPx())
             alpha = .62f
-        }) { drawBlobs(this, circ, gap, pillW, pillH, dxL, sL, pillScaleX, press.value, pillTx, onlyAccent = false) }
-        Canvas(Modifier.fillMaxSize().graphicsLayer { renderEffect = gooEffect(.30f, .86f, .50f, 9.dp.toPx()) }) {
-            drawBlobs(this, circ, gap, pillW, pillH, dxR, sR, pillScaleX, press.value, pillTx, onlyAccent = true)
+        }) { drawBlobs(this, circ, gap, pillW, pillH, dxL(), sL(), pillSX(), press.value, pillTx(), onlyAccent = false) }
+        Canvas(Modifier.fillMaxSize().graphicsLayer { renderEffect = gooEffect(acc.red, acc.green, acc.blue, 9.dp.toPx()) }) {
+            drawBlobs(this, circ, gap, pillW, pillH, dxR(), sR(), pillSX(), press.value, pillTx(), onlyAccent = true)
         }
 
         // ---- левая кнопка: настройки (с бликами по краю, как у капсулы) ----
         val rim = Brush.verticalGradient(listOf(Color(0x59FFFFFF), Color.Transparent, Color(0x1AFFFFFF)))
         Box(Modifier.offset(x = 0.dp, y = (pillH - circ) / 2).size(circ)
-            .graphicsLayer { translationX = dxL; scaleX = sL; scaleY = sL; alpha = (sL * 1.4f).coerceIn(0f, 1f) }
+            .graphicsLayer { val k = sL(); translationX = dxL(); scaleX = k; scaleY = k; alpha = (k * 1.4f).coerceIn(0f, 1f) }
             .clip(CircleShape).backdropBlur(backdrop, 20.dp, Color.Transparent, CircleShape)
             .border(1.dp, rim, CircleShape)
             .drawWithContent {
@@ -137,21 +142,26 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
                 // мягкий блик сверху-слева
                 drawCircle(Brush.radialGradient(listOf(Color(0x2EFFFFFF), Color.Transparent), Offset(size.width * .3f, size.height * .22f), size.width * .6f))
             }
-            .press(CircleShape, scaleTo = .88f, enabled = sL > .6f, onClick = onSettings), contentAlignment = Alignment.Center) {
+            .press(CircleShape, scaleTo = .88f, enabled = lOn, onClick = onSettings), contentAlignment = Alignment.Center) {
             Icon(Ic.set, null, tint = t.tx, modifier = Modifier.size(26.dp))
         }
         // ---- правая кнопка: «+» ----
         Box(Modifier.offset(x = maxWidth - circ, y = (pillH - circ) / 2).size(circ).plusAnchor()
-            .graphicsLayer { translationX = -dxR; scaleX = sR; scaleY = sR; alpha = (sR * 1.4f).coerceIn(0f, 1f) }
+            .graphicsLayer { val k = sR(); translationX = -dxR(); scaleX = k; scaleY = k; alpha = (k * 1.4f).coerceIn(0f, 1f) }
             .clip(CircleShape)
+            // едва заметный белый градиент сверху-слева
+            .drawWithContent {
+                drawContent()
+                drawRect(Brush.linearGradient(listOf(Color.White.copy(alpha = .16f), Color.Transparent), Offset.Zero, Offset(size.width, size.height * .9f)))
+            }
             .border(1.dp, Brush.verticalGradient(listOf(Color(0x66FFFFFF), Color.Transparent, Color(0x1AFFFFFF))), CircleShape)
-            .press(CircleShape, scaleTo = .88f, enabled = sR > .6f, onClick = onPlus), contentAlignment = Alignment.Center) {
-            Icon(Ic.plus, null, tint = Color(0xFF05230F), modifier = Modifier.size(28.dp))
+            .press(CircleShape, scaleTo = .88f, enabled = rOn, onClick = onPlus), contentAlignment = Alignment.Center) {
+            Icon(Ic.plus, null, tint = plusInk, modifier = Modifier.size(28.dp))
         }
 
         // ---- капсула ----
         Box(Modifier.offset(x = circ + gap).width(pillW).height(pillH)
-            .graphicsLayer { scaleX = pillScaleX; scaleY = press.value; translationX = pillTx }
+            .graphicsLayer { scaleX = pillSX(); scaleY = press.value; translationX = pillTx() }
             .clip(pillShape).backdropBlur(backdrop, 26.dp, Color.Transparent, pillShape)
             .border(1.dp, Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color.Transparent, Color(0x0DFFFFFF))), pillShape)
             .drawWithContent {
