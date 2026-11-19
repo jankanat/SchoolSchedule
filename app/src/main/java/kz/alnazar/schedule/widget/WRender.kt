@@ -210,9 +210,9 @@ private class R(
         if (lines > 1) {   // самое длинное слово не должно ломаться посреди: чуть уменьшаем шрифт
             val q = tp(size, color, weight, ls)
             val longest = t.split(' ').maxOfOrNull { q.measureText(it) } ?: 0f
-            if (longest > w && longest > 0f) size = max(size0 * .66f, size0 * w / longest)
+            if (longest > w * .98f && longest > 0f) size = max(size0 * .6f, size0 * w * .96f / longest)
         }
-        return StaticLayout.Builder.obtain(t, 0, t.length, tp(size, color, weight, ls), max(1, w.roundToInt()))
+        return StaticLayout.Builder.obtain(t, 0, t.length, tp(size, color, weight, ls), max(1, kotlin.math.floor(w).toInt()))
             .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setAlignment(align).setIncludePad(false).build()
     }
     /** Нарисовать текст, вернуть высоту. */
@@ -635,22 +635,27 @@ private class R(
     fun pixel22() {
         val x = fSlot ?: return
         val pd = f(14f); val w = W - pd * 2
-        val ckW = min(f(96f), W * .55f); val ckH = ckW * 100f / 96f
-        val ckX = (W - ckW) / 2
-        cookie(ckX, pd, ckW, ckH, P.accT)
+        val ckW = min(f(104f), W * .6f); val ckH = ckW * 100f / 96f
+        val titleS = f(17f); val roomS = f(13f)
+        val r = room(L, L.indexOf(x))
+        val th1 = th(name(x), w, titleS, 600, 2); val th2 = if (r.isNotEmpty()) th(r, w, roomS) + f(2f) else 0f
+        val gap = f(10f)
+        val block = ckH + gap + th1 + th2
+        val y0 = ((H - block) / 2).coerceAtLeast(pd * .6f)
+        cookie((W - ckW) / 2, y0, ckW, ckH, P.accT)
         val mins = minsOf(x)
-        val big = 34f * ckW / 96f
+        val big = 36f * ckW / 96f * k / k
         val numT = if (mins > 0 || isCur) "$mins" else hm(x.start)
         val ns = if (mins > 0 || isCur) big else big * .7f
         val unitT = if (mins > 0 || isCur) mn else ""
-        val nh = ns * .72f; val uh = if (unitT.isNotEmpty()) f(12f) * 1.15f else 0f
-        val cy = pd + ckH / 2
-        val top = cy - (nh + uh) / 2 + f(1f)
+        val us = ckW * .13f
+        val nh = ns * .72f; val uh = if (unitT.isNotEmpty()) us * 1.2f else 0f
+        val top = y0 + ckH / 2 - (nh + uh) / 2 + f(1f)
         base(numT, W / 2 - bigW(numT, ns, 700) / 2, top + nh, ns, P.ink, 700)
-        if (unitT.isNotEmpty()) base(unitT, W / 2 - bigW(unitT, f(12f), 600) / 2, top + nh + uh, f(12f), P.ink, 600)
-        var y = pd + ckH + f(10f)
-        y += text(name(x), pd, y, w, f(15f), P.tx, 600, 2, CTR) + f(2f)
-        text(room(L, L.indexOf(x)), pd, y, w, f(12f), P.tx2, 400, 1, CTR)
+        if (unitT.isNotEmpty()) base(unitT, W / 2 - bigW(unitT, us, 600) / 2, top + nh + uh, us, P.ink, 600)
+        var y = y0 + ckH + gap
+        y += text(name(x), pd, y, w, titleS, P.tx, 600, 2, CTR) + f(2f)
+        text(r, pd, y, w, roomS, P.tx2, 400, 1, CTR)
     }
 
     fun pixel42() {

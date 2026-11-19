@@ -28,7 +28,7 @@ import java.time.LocalDate
 @Config(sdk = [34], qualifiers = "w412dp-h915dp-xxhdpi")
 class RenderTest {
     private val lessons = listOf(
-        Triple("hist_kz", "215", 480 to 525), Triple("rus", "121", 530 to 575), Triple("algebra", "304", 580 to 625),
+        Triple("natural", "215", 480 to 525), Triple("rus", "121", 530 to 575), Triple("algebra", "304", 580 to 625),
         Triple("eng", "210", 635 to 680), Triple("pe", "спортзал", 690 to 735),
     )
     private fun slots(d: LocalDate) = lessons.mapIndexed { i, (sj, r, t) -> Slot(i, Lesson(sj, r), t.first, t.second, false, 3, d) }
@@ -67,6 +67,16 @@ class RenderTest {
                 c.drawBitmap(b, x * d, y * d, null)
             }
             FileOutputStream(File(out, "board_${style}_${ph.name.lowercase()}.png")).use { board.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+        for (style in styles) {   // казахский: длинные слова вроде «Жаратылыстану»
+            val s = AppState(style = style, iconSet = "fluent", widgetLang = "kk")
+            val n = nowOf(Phase.LESSON)
+            val board = Bitmap.createBitmap((412 * d).toInt(), (760 * d).toInt(), Bitmap.Config.ARGB_8888)
+            val c = Canvas(board)
+            c.drawColor(walls.getValue(style).second)
+            val pos = mapOf("4x2" to (16f to 16f), "2x4" to (16f to 228f), "2x2" to (214f to 228f), "1x2" to (214f to 426f), "2x1" to (16f to 652f))
+            for ((sz, wh) in sizes) { val b = WRender.render(ctx, s, n, sz, wh.first, wh.second); val (x, y) = pos.getValue(sz); c.drawBitmap(b, x * d, y * d, null) }
+            FileOutputStream(File(out, "board_${style}_kk.png")).use { board.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
         // крупный экран (например, 360 dpi: виджеты в dp заметно больше макетных) — проверка масштабирования
         for (style in styles) for (ph in listOf(Phase.LESSON, Phase.AFTER)) {
