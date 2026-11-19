@@ -452,14 +452,14 @@ private class R(
         if (isCur) bar(bx, by, bwid, bh, frac(x), P.acc, a(Color.WHITE, .12f))
         else rr(bx, by, bwid, bh, bh / 2, a(Color.WHITE, .12f))
         val meta = metaOf(x)
-        val mh = th(meta, bwid, f(13f), 600)
+        val mh = th(meta, bwid, f(14f), 600)
         val zt = ph + ic + f(2f); val zb = by - f(12f)
         val ts = fit(name(x), bwid, (zb - zt) - mh - f(8f), f(34f), f(20f), 800, 2)
         val titleH = th(name(x), bwid, ts, 800, 2)
         val blockH = titleH + f(4f) + mh
         val y0 = zt + ((zb - zt - blockH) / 2).coerceAtLeast(0f)
         text(name(x), bx, y0, bwid, ts, P.tx, 800, 2)
-        text(meta, bx, y0 + titleH + f(4f), bwid, f(13f), P.tx2, 600)
+        text(meta, bx, y0 + titleH + f(4f), bwid, f(14f), P.tx2, 600)
     }
 
     fun color42() {
@@ -508,10 +508,10 @@ private class R(
             icon(sl, pv + f(8f), y + (rowH - isz) / 2, isz)
             val tx = pv + f(8f) + isz + f(10f); val tw = W - tx - pv - f(6f)
             val h1 = th(name(sl), tw, f(14f), 700); val subt = join(if (cfg.time) hm(sl.start) else "", roomShort(lst.items, i))
-            val h2 = th(subt, tw, f(11.5f))
+            val h2 = th(subt, tw, f(13f))
             var yy = y + (rowH - h1 - h2) / 2
             yy += text(name(sl), tx, yy, tw, f(14f), P.tx, 700)
-            text(subt, tx, yy, tw, f(11.5f), P.tx2)
+            text(subt, tx, yy, tw, f(13f), P.tx2)
         }
     }
 
@@ -519,18 +519,18 @@ private class R(
         val x = slot12() ?: return
         val pv = f(8f); val w = W - pv * 2
         var y = f(12f)
-        y += text(lab12(x), pv, y, w, f(12f), P.acc, 700, 1, CTR) + f(8f)
+        y += text(lab12(x), pv, y, w, f(13.5f), P.acc, 700, 1, CTR) + f(8f)
         val r = room(L, L.indexOf(x))
         val t1 = if (cfg.time) hm(x.start) else ""
-        val h2 = th(r, w, f(11.5f), 600); val h1 = th(t1, w, f(11.5f), 600)
+        val h2 = th(r, w, f(13f), 600); val h1 = th(t1, w, f(13f), 600)
         val zb = H - f(12f) - h2 - h1 - f(6f)
         val isz = min(f(56f), W - f(16f)); val ns = fit(name(x), w, (zb - y) - isz - f(14f), f(20f), f(13f), 800, 2); val nh = th(name(x), w, ns, 800, 2)
         val bl = isz + f(8f) + nh
         val y1 = y + ((zb - y - bl) / 2).coerceAtLeast(0f)
         icon(x, (W - isz) / 2, y1, isz)
         text(name(x), pv, y1 + isz + f(8f), w, ns, P.tx, 800, 2, CTR)
-        text(r, pv, H - f(12f) - h2, w, f(11.5f), P.tx2, 600, 1, CTR)
-        text(t1, pv, H - f(12f) - h2 - h1, w, f(11.5f), P.tx2, 600, 1, CTR)
+        text(r, pv, H - f(12f) - h2, w, f(13f), P.tx2, 600, 1, CTR)
+        text(t1, pv, H - f(12f) - h2 - h1, w, f(13f), P.tx2, 600, 1, CTR)
     }
 
     fun color21() {
@@ -568,11 +568,11 @@ private class R(
         val i = L.indexOf(x)
         val head = up(join(label, roomShort(L, i)))
         var y = pd
-        y += text(head, pd, y, w, f(11f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f) + f(4f)
+        y += text(head, pd, y, w, f(13f), P.accT, 700, 1, Layout.Alignment.ALIGN_NORMAL, .02f) + f(4f)
         val nxt = L.getOrNull(i + 1)
         val nextT = if (nxt != null) Tr.t(lang, "next") + ": " + name(nxt) else ""
         var by = H - pd
-        if (nextT.isNotEmpty()) { val h = th(nextT, w, f(12f), 500); text(nextT, pd, by - h, w, f(12f), P.tx2, 500); by -= h + f(8f) }
+        if (nextT.isNotEmpty()) { val h = th(nextT, w, f(14f), 500); text(nextT, pd, by - h, w, f(14f), P.tx2, 500); by -= h + f(8f) }
         val mins = minsOf(x)
         val ringR = f(20f)
         val sz = f(40f)
@@ -583,7 +583,7 @@ private class R(
         }
         if (mins > 0 || isCur) {
             val bw = base("$mins", pd, by - f(2f), sz, P.tx, 600)
-            base(" $mn", pd + bw, by - f(2f), f(12f), P.tx2, 500)
+            base(" $mn", pd + bw, by - f(2f), f(14f), P.tx2, 500)
         }
         if (isCur) ring(W - pd - ringR - f(2.5f), by - ringR - f(2.5f), ringR, f(5f), frac(x), P.acc, a(Color.WHITE, .2f))
     }
@@ -653,7 +653,7 @@ private class R(
         val x = fSlot ?: return
         val pd = f(14f); val w = W - pd * 2
         val ckW = min(f(104f), W * .6f); val ckH = ckW * 100f / 96f
-        val titleS = f(17f); val roomS = f(13f)
+        val titleS = f(19f); val roomS = f(15f)
         val r = room(L, L.indexOf(x))
         val th1 = th(name(x), w, titleS, 600, 2); val th2 = if (r.isNotEmpty()) th(r, w, roomS) + f(2f) else 0f
         val gap = f(10f)
@@ -732,7 +732,7 @@ private class R(
         val x = slot12() ?: return
         val ph = f(8f); val w = W - ph * 2
         var y = f(18f)
-        y += text(lab12(x), ph, y, w, f(12f), P.accT, 600, 1, CTR, .02f) + f(8f)
+        y += text(lab12(x), ph, y, w, f(13.5f), P.accT, 600, 1, CTR, .02f) + f(8f)
         val t = hm(x.start); val h = th(t, w, f(14f))
         val zb = H - f(18f) - h - f(6f)
         val isz = min(f(54f), W - f(16f)); val ns = fit(name(x), w, (zb - y) - isz - f(14f), f(20f), f(13f), 600, 2); val nh = th(name(x), w, ns, 600, 2)
@@ -897,15 +897,15 @@ private class R(
         text(label, pd + isz + f(8f), y + (isz - f(17f)) / 2, w - isz, f(14f), P.accT, 700)
         y += isz + f(4f)
         val bh = f(6f); val by = H - pd - bh
-        val t1 = hm(x.start); val t2 = hm(x.end); val th1 = th(t1, w, f(12f))
+        val t1 = hm(x.start); val t2 = hm(x.end); val th1 = th(t1, w, f(14f))
         run {
             val zb = by - f(4f) - th1 - f(8f)
             val ts = fit(name(x), w, zb - y, f(32f), f(20f), 700, 2); val h = th(name(x), w, ts, 700, 2)
             text(name(x), pd, y + ((zb - y - h) / 2).coerceAtLeast(0f), w, ts, P.tx, 700, 2)
         }
         if (isCur) bar(pd, by, w, bh, frac(x), P.acc, a(Color.WHITE, .15f)) else rr(pd, by, w, bh, bh / 2, a(Color.WHITE, .15f))
-        text(t1, pd, by - f(4f) - th1, w, f(12f), P.tx2)
-        text(t2, pd, by - f(4f) - th1, w, f(12f), P.tx2, 400, 1, OPP)
+        text(t1, pd, by - f(4f) - th1, w, f(14f), P.tx2)
+        text(t2, pd, by - f(4f) - th1, w, f(14f), P.tx2, 400, 1, OPP)
     }
     fun schedWord() = when (lang) { "kk" -> "Кесте"; "en" -> "Schedule"; else -> "Расписание" }
 
@@ -961,7 +961,7 @@ private class R(
         val x = slot12() ?: return
         val ph = f(8f); val w = W - ph * 2
         var y = f(14f)
-        y += text(lab12(x), ph, y, w, f(12f), P.accT, 700, 1, CTR) + f(12f)
+        y += text(lab12(x), ph, y, w, f(13.5f), P.accT, 700, 1, CTR) + f(12f)
         val t = hm(x.start); val h = th(t, w, f(18f), 700)
         val zb = H - f(14f) - h - f(6f)
         val isz = min(f(54f), W - f(16f)); val ns = fit(name(x), w, (zb - y) - isz - f(14f), f(20f), f(13f), 700, 2); val nh = th(name(x), w, ns, 700, 2)
