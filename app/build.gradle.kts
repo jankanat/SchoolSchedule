@@ -64,6 +64,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
 
 

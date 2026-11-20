@@ -157,7 +157,7 @@ object Files {
 
     fun deletePhotos(names: List<String>) = names.forEach { File(photos(), it).delete() }
 
-    private fun decodeScaled(ctx: Context, uri: Uri, max: Int): Bitmap? {
+    fun decodeScaled(ctx: Context, uri: Uri, max: Int): Bitmap? {
         val cr = ctx.contentResolver
         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, o) }

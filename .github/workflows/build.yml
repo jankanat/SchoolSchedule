@@ -23,6 +23,12 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Tesseract language data (rus, kaz, eng)
+        run: |
+          mkdir -p app/src/main/assets/tessdata
+          for l in rus kaz eng; do curl -fsSL -o app/src/main/assets/tessdata/$l.traineddata https://github.com/tesseract-ocr/tessdata_fast/raw/main/$l.traineddata; done
+          ls -la app/src/main/assets/tessdata
+
       - name: Build debug APK
         run: gradle assembleDebug --stacktrace --no-daemon
 

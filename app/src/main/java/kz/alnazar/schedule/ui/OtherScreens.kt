@@ -96,7 +96,7 @@ fun SettingsScreen(st: AppState) {
                 }
                 Sec(Tr.t(lang, "set_data"))
                 Group {
-                    SetRow("📥", 0xFF32ADE6, Tr.t(lang, "import_title"), "ML Kit · Gemini · $later", enabled = false) {}
+                    SetRow("📥", 0xFF32ADE6, Tr.t(lang, "import_title"), Tr.t(lang, "i5_sub")) { ui.go("import") }
                     RowDivider()
                     SetRow("💾", 0xFF8E8E93, Tr.t(lang, "backup"), Tr.t(lang, "exp") + " · " + Tr.t(lang, "imp_json") + " · Google") { ui.go("backup") }
                 }
@@ -193,6 +193,10 @@ fun SubPage(id: String, st: AppState) {
             "backup" -> {
                 item { HdrBack(Tr.t(lang, "backup")) { ui.back() } }
                 item { BackupPage(st) }
+            }
+            "import" -> {
+                item { HdrBack(Tr.t(lang, "import_title")) { ui.back() } }
+                item { ImportPage(st) }
             }
             "notif" -> {
                 item { HdrBack(Tr.t(lang, "notif")) { ui.back() } }
