@@ -433,21 +433,6 @@ private fun WidgetUpdaterExact(ctx: Context) = kz.alnazar.schedule.widget.Widget
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun GlareCard(on: Boolean, k: Float, onToggle: (Boolean) -> Unit, onChange: (Float) -> Unit, onEnd: () -> Unit) {
-    val lang = Store.state.value.appLang
-    Card {
-        Column(Modifier.padding(16.dp)) {
-            Chips(listOf("on" to Tr.t(lang, "g_on"), "off" to Tr.t(lang, "g_off")), if (on) "on" else "off") { onToggle(it == "on") }
-            if (on) {
-                VSpace(10.dp)
-                GradSlider("", k / 1.5f, listOf(T.s2, T.acc), T.acc, fmt = { "${(it * 150).roundToInt()}%" },
-                    onChange = { v -> onChange(((v * 1.5f * 20).roundToInt() / 20f).coerceAtLeast(.1f)) }, onEnd = onEnd)
-            }
-        }
-    }
-}
-
-@Composable
 fun FontAndCorners(st: AppState) {
     val ctx = LocalContext.current
     val lang = st.appLang
@@ -461,15 +446,6 @@ fun FontAndCorners(st: AppState) {
                 onEnd = { Store.update(ctx) { it } },
             )
         }
-    }
-    if (st.style == "color" || st.style == "ios26" || st.style == "origin") {
-        Sec(Tr.t(lang, "glareW"))
-        GlareCard(st.glareW, st.glareWK, { on -> Store.update(ctx) { it.copy(glareW = on) } },
-            { v -> Store.preview { it.copy(glareWK = v) } }) { Store.update(ctx) { it } }
-        Sec(Tr.t(lang, "glareUi"))
-        GlareCard(st.glareUi, st.glareUiK, { on -> Store.update(ctx) { it.copy(glareUi = on) } },
-            { v -> Store.preview { it.copy(glareUiK = v) } }) { Store.update(ctx) { it } }
-        Text(Tr.t(lang, "g_note"), color = T.tx2, fontSize = 12.5.sp, modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp))
     }
     Sec(Tr.t(lang, "font"))
     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

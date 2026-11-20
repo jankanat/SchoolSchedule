@@ -308,16 +308,14 @@ private class R(
             else -> { p.color = 0xE01C1A28.toInt(); c.drawRoundRect(rect, r, r, p) }
         }
         // кромка и очень слабый блик — только у ColorOS, iOS 26 и OriginOS
-        val gk = if (s.glareW) s.glareWK else 0f
-        fun ga(a: Int, up: Int = 255) = ((a * gk).toInt().coerceIn(0, up) shl 24) or 0xFFFFFF
-        if (gk > 0f && (P.kind == "color" || P.kind == "ios" || P.kind == "origin")) {
+        if (P.kind == "color" || P.kind == "ios" || P.kind == "origin") {
             p.reset(); p.isAntiAlias = true
-            p.shader = LinearGradient(0f, 0f, 0f, H * .34f, ga(0x14), 0x00FFFFFF, Shader.TileMode.CLAMP)
+            p.shader = LinearGradient(0f, 0f, 0f, H * .34f, 0x14FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
             c.drawRoundRect(rect, r, r, p)
-            p.reset(); p.isAntiAlias = true; p.style = Paint.Style.STROKE; p.strokeWidth = 1f; p.color = ga(0x42)
+            p.reset(); p.isAntiAlias = true; p.style = Paint.Style.STROKE; p.strokeWidth = 1f; p.color = 0x42FFFFFF
             c.drawRoundRect(RectF(.5f, .5f, W - .5f, H - .5f), r - .5f, r - .5f, p)
             p.reset(); p.isAntiAlias = true; p.style = Paint.Style.STROKE; p.strokeWidth = 1.6f
-            p.shader = LinearGradient(0f, 0f, 0f, min(H * .3f, 34f), ga(0x5C), 0x00FFFFFF, Shader.TileMode.CLAMP)
+            p.shader = LinearGradient(0f, 0f, 0f, min(H * .3f, 34f), 0x5CFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP)
             c.drawRoundRect(RectF(.8f, .8f, W - .8f, H - .8f), r - .8f, r - .8f, p)
         }
     }
