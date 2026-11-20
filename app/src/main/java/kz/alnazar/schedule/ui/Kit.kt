@@ -142,6 +142,18 @@ fun Hdr(title: String, sub: String? = null, right: (@Composable RowScope.() -> U
 
 @Composable
 fun HdrBack(title: String, onBack: () -> Unit) {
+    if (T.id == "color") {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 16.dp, end = 20.dp, top = 10.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            RoundBtn(Ic.chevL, 48.dp, onBack)
+            Text(title, color = T.tx, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-.5).sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        }
+        return
+    }
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -157,7 +169,9 @@ fun HdrBack(title: String, onBack: () -> Unit) {
 
 @Composable
 fun Sec(text: String) {
-    if (T.pixel) Text(text, color = T.acc, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+    if (T.id == "color") Text(text, color = T.tx2, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 22.dp, bottom = 9.dp))
+    else if (T.pixel) Text(text, color = T.acc, fontSize = 14.sp, fontWeight = FontWeight.Medium,
         modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 22.dp, bottom = 8.dp))
     else if (!T.secUpper) Text(text, color = T.tx2, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(start = 10.dp, end = 8.dp, top = 20.dp, bottom = 8.dp))
@@ -193,12 +207,28 @@ fun Group(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 fun RowDivider() {
     if (T.pixel) Box(Modifier.fillMaxWidth().height(3.dp).background(T.bg.first()))
+    else if (T.id == "color") Box(Modifier.padding(start = LocalRowInset.current, end = 18.dp).fillMaxWidth().height(.7.dp).background(Color(0x24FFFFFF)))
     else Box(Modifier.padding(start = 14.dp).fillMaxWidth().height(1.dp).background(T.line))
 }
 
 /** Строка настроек: цветная плитка, заголовок, подзаголовок, стрелка. */
 @Composable
 fun SetRow(emoji: String, color: Long, title: String, sub: String, enabled: Boolean = true, onClick: () -> Unit) {
+    if (T.id == "color") {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 68.dp).coRow(enabled, onClick).padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(coIconFor(emoji), null, tint = if (enabled) T.acc else T.tx2, modifier = Modifier.size(28.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, color = if (enabled) T.tx else T.tx2, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                if (sub.isNotEmpty()) Text(sub, color = T.tx2, fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            if (enabled) Icon(Ic.chevR, null, tint = T.tx2.copy(alpha = .8f), modifier = Modifier.size(20.dp))
+        }
+        return
+    }
     Row(
         Modifier.fillMaxWidth().heightIn(min = 54.dp).tap(enabled, onClick).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -218,6 +248,20 @@ fun SetRow(emoji: String, color: Long, title: String, sub: String, enabled: Bool
 /** Строка с переключателем. */
 @Composable
 fun TgRow(title: String, on: Boolean, sub: String? = null, onChange: (Boolean) -> Unit) {
+    if (T.id == "color") {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 64.dp).coRow { onChange(!on) }.padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, color = T.tx, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                if (sub != null) Text(sub, color = T.tx2, fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp))
+            }
+            IosSwitch(on)
+        }
+        return
+    }
     Row(
         Modifier.fillMaxWidth().heightIn(min = 54.dp).tap { onChange(!on) }.padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -235,7 +279,7 @@ fun TgRow(title: String, on: Boolean, sub: String? = null, onChange: (Boolean) -
 fun IosSwitch(on: Boolean) {
     if (T.pixel) { M3Switch(on); return }
     val t = T
-    val bg by animateColorAsState(if (on) t.swOn else t.s2, tween(200), label = "sw")
+    val bg by animateColorAsState(if (on) t.swOn else if (t.id == "color") Color(0xFF48484A) else t.s2, tween(200), label = "sw")
     val knob = t.swH - t.swPad * 2
     val x by animateDpAsState(if (on) t.swW - t.swPad - knob else t.swPad, spring(dampingRatio = .75f, stiffness = 600f), label = "swx")
     Box(Modifier.size(t.swW, t.swH).clip(RoundedCornerShape(99.dp)).background(bg)) {
@@ -299,11 +343,11 @@ fun <K> Seg(options: List<Pair<K, String>>, selected: K, onSelect: (K) -> Unit) 
         val w = (maxWidth - gap * (options.size - 1)) / options.size
         val x by animateDpAsState((w + gap) * idx, SLIDE, label = "seg")
         Box(Modifier.matchParentSize()) {
-            Box(Modifier.offset(x = x).width(w).fillMaxHeight().clip(RoundedCornerShape(T.rsg - 3.dp)).background(if (T.segKind == "soft") T.accSoft else T.segOn))
+            Box(Modifier.offset(x = x).width(w).fillMaxHeight().clip(RoundedCornerShape(T.rsg - 3.dp)).background(if (T.id == "color") Color(0xFFE9E9EE) else if (T.segKind == "soft") T.accSoft else T.segOn))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
             options.forEachIndexed { i, (k, label) ->
-                val c by animateColorAsState(if (i == idx) (if (T.segKind == "soft") T.acc else T.tx) else T.tx2, tween(200), label = "segc")
+                val c by animateColorAsState(if (i == idx) (if (T.id == "color") Color(0xFF111114) else if (T.segKind == "soft") T.acc else T.tx) else T.tx2, tween(200), label = "segc")
                 Box(
                     Modifier.width(w).clip(RoundedCornerShape(T.rsg - 3.dp)).tap { onSelect(k) }.padding(vertical = 8.dp, horizontal = 6.dp),
                     contentAlignment = Alignment.Center,

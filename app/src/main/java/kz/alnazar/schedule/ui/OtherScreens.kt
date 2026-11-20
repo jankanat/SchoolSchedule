@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,60 +66,85 @@ internal fun FakeApp(emoji: String) {
 
 /* ===================== НАСТРОЙКИ ===================== */
 
+private class SRow(val emoji: String, val color: Long, val title: String, val sub: String, val enabled: Boolean = true, val onClick: () -> Unit)
+
 @Composable
 fun SettingsScreen(st: AppState) {
     val ui = LocalUi.current
     val ctx = LocalContext.current
     val lang = st.appLang
-    val later = Tr.t(lang, "later")
-    Page(bottomNav = false) {
-        item { HdrBack(Tr.t(lang, "set_title")) { ui.back() } }
-        item {
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                Sec(Tr.t(lang, "set_look"))
-                Group {
-                    SetRow("🧩", 0xFF30D158, Tr.t(lang, "tab_widgets"), Tr.t(lang, "w_sub")) { ui.go("widgets") }
-                    RowDivider()
-                    SetRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (mapOf("ios26" to "iOS 26", "pixel" to "Pixel OS", "ios18" to "iOS 18", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9.5")[st.style] ?: "iOS 26") + " · " + Tr.t(lang, if (st.theme == "custom") "th_custom" else "th_dark")) { ui.go("appearance") }
-                    RowDivider()
-                    SetRow("🌐", 0xFF0A84FF, Tr.t(lang, "language"), "${st.appLang.uppercase()} · ${Tr.t(lang, "tab_widgets")}: ${st.widgetLang.uppercase()}") { ui.go("language") }
-                }
-                Sec(Tr.t(lang, "set_school"))
-                Group {
-                    SetRow("🏫", 0xFFFF9F0A, Tr.t(lang, "class_prog"), Tr.t(lang, if (st.program == "kz") "prog_kz" else "prog_ru") + " · ${st.grade} · " + Tr.t(lang, if (st.shift == 2) "shift2" else "shift1")) { ui.go("class") }
-                    RowDivider()
-                    val b = st.bells
-                    SetRow("🔔", 0xFFFF453A, Tr.t(lang, "bells"), if (b.isEmpty()) "" else Tr.hm(b.first().start) + "–" + Tr.hm(b[minOf(6, b.size - 1)].end)) { ui.go("bells") }
-                    RowDivider()
-                    val hn = Sched.holiday(st, java.time.LocalDate.now())
-                    SetRow("🏖️", 0xFF30D158, Tr.t(lang, "holidays"), if (hn != null) hn.name + " · " + Tr.t(lang, "hol_now") else "${st.holidays.size}") { ui.go("holidays") }
-                    RowDivider()
-                    SetRow("📚", 0xFF5E5CE6, Tr.t(lang, "subjects"), Tr.t(lang, "subj_mine") + ": ${st.custom.size}") { ui.go("subjects") }
-                }
-                Sec(Tr.t(lang, "set_data"))
-                Group {
-                    SetRow("📥", 0xFF32ADE6, Tr.t(lang, "import_title"), Tr.t(lang, "i5_sub")) { ui.go("import") }
-                    RowDivider()
-                    SetRow("💾", 0xFF8E8E93, Tr.t(lang, "backup"), Tr.t(lang, "exp") + " · " + Tr.t(lang, "imp_json") + " · Google") { ui.go("backup") }
-                }
-                Sec(Tr.t(lang, "set_system"))
-                Group {
-                    val nOn = listOfNotNull(
-                        if (st.notif.evening) Tr.hm(st.notif.eveningAt) else null,
-                        if (st.notif.before) Tr.t(lang, "n_min", st.notif.beforeMin) else null,
-                    )
-                    SetRow("📝", 0xFFFF375F, Tr.t(lang, "notif"), if (nOn.isEmpty()) "—" else nOn.joinToString(" · ")) { ui.go("notif") }
-                    RowDivider()
-                    val ok = WidgetUpdater.canExact(ctx)
-                    SetRow("⏰", 0xFFFF9F0A, Tr.t(lang, "exactAlarm"), Tr.t(lang, if (ok) "exactAlarmOn" else "exactAlarmHint"), enabled = !ok) {
-                        ctx.startActivity(
-                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
+    val co = T.id == "color"
+    var query by rememberSaveable { mutableStateOf("") }
+    var searching by rememberSaveable { mutableStateOf(false) }
+
+    val b = st.bells
+    val hn = Sched.holiday(st, java.time.LocalDate.now())
+    val nOn = listOfNotNull(
+        if (st.notif.evening) Tr.hm(st.notif.eveningAt) else null,
+        if (st.notif.before) Tr.t(lang, "n_min", st.notif.beforeMin) else null,
+    )
+    val exactOk = WidgetUpdater.canExact(ctx)
+    val sections = listOf(
+        Tr.t(lang, "set_look") to listOf(
+            SRow("🧩", 0xFF30D158, Tr.t(lang, "tab_widgets"), Tr.t(lang, "w_sub")) { ui.go("widgets") },
+            SRow("🎨", 0xFFBF5AF2, Tr.t(lang, "appearance"), (mapOf("ios26" to "iOS 26", "pixel" to "Pixel OS", "ios18" to "iOS 18", "color" to "ColorOS 17", "origin" to "OriginOS 7", "oneui" to "One UI 9.5")[st.style] ?: "iOS 26") + " · " + Tr.t(lang, if (st.theme == "custom") "th_custom" else "th_dark")) { ui.go("appearance") },
+            SRow("🌐", 0xFF0A84FF, Tr.t(lang, "language"), "${st.appLang.uppercase()} · ${Tr.t(lang, "tab_widgets")}: ${st.widgetLang.uppercase()}") { ui.go("language") },
+        ),
+        Tr.t(lang, "set_school") to listOf(
+            SRow("🏫", 0xFFFF9F0A, Tr.t(lang, "class_prog"), Tr.t(lang, if (st.program == "kz") "prog_kz" else "prog_ru") + " · ${st.grade} · " + Tr.t(lang, if (st.shift == 2) "shift2" else "shift1")) { ui.go("class") },
+            SRow("🔔", 0xFFFF453A, Tr.t(lang, "bells"), if (b.isEmpty()) "" else Tr.hm(b.first().start) + "–" + Tr.hm(b[minOf(6, b.size - 1)].end)) { ui.go("bells") },
+            SRow("🏖️", 0xFF30D158, Tr.t(lang, "holidays"), if (hn != null) hn.name + " · " + Tr.t(lang, "hol_now") else "${st.holidays.size}") { ui.go("holidays") },
+            SRow("📚", 0xFF5E5CE6, Tr.t(lang, "subjects"), Tr.t(lang, "subj_mine") + ": ${st.custom.size}") { ui.go("subjects") },
+        ),
+        Tr.t(lang, "set_data") to listOf(
+            SRow("📥", 0xFF32ADE6, Tr.t(lang, "import_title"), Tr.t(lang, "i5_sub")) { ui.go("import") },
+            SRow("💾", 0xFF8E8E93, Tr.t(lang, "backup"), Tr.t(lang, "exp") + " · " + Tr.t(lang, "imp_json") + " · Google") { ui.go("backup") },
+        ),
+        Tr.t(lang, "set_system") to listOf(
+            SRow("📝", 0xFFFF375F, Tr.t(lang, "notif"), if (nOn.isEmpty()) "—" else nOn.joinToString(" · ")) { ui.go("notif") },
+            SRow("⏰", 0xFFFF9F0A, Tr.t(lang, "exactAlarm"), Tr.t(lang, if (exactOk) "exactAlarmOn" else "exactAlarmHint"), enabled = !exactOk) {
+                ctx.startActivity(
+                    Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + ctx.packageName))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            },
+        ),
+    )
+    val q = query.trim()
+
+    @Composable
+    fun rows(list: List<SRow>) {
+        Group {
+            list.forEachIndexed { i, r ->
+                if (i > 0) RowDivider()
+                SetRow(r.emoji, r.color, r.title, r.sub, r.enabled, r.onClick)
+            }
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Page(bottomNav = false) {
+            item { HdrBack(Tr.t(lang, "set_title")) { ui.back() } }
+            item {
+                CompositionLocalProvider(LocalRowInset provides (if (co) 62.dp else 14.dp)) {
+                    Column(Modifier.padding(horizontal = 16.dp)) {
+                        if (co && q.isNotEmpty()) {
+                            val hits = sections.flatMap { it.second }.filter { it.title.contains(q, true) || it.sub.contains(q, true) }
+                            if (hits.isEmpty()) Empty("—") else { Spacer(Modifier.height(8.dp)); rows(hits) }
+                        } else sections.forEach { (name, list) ->
+                            Sec(name)
+                            rows(list)
+                        }
+                        if (co) Spacer(Modifier.height(72.dp))
                     }
                 }
             }
         }
+        if (co) CoSearchPill(
+            Tr.t(lang, "search"), searching, query,
+            onOpen = { searching = true }, onQuery = { query = it }, onClose = { searching = false; query = "" },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -171,7 +198,7 @@ fun SubPage(id: String, st: AppState) {
                             st.bells.forEachIndexed { i, b ->
                                 if (i > 0) RowDivider()
                                 Row(
-                                    Modifier.fillMaxWidth().tap { ui.open { BellSheet(i) } }.padding(horizontal = 14.dp, vertical = 15.dp),
+                                    Modifier.fillMaxWidth().tap { ui.open { BellSheet(i) } }.padding(horizontal = if (T.id == "color") 18.dp else 14.dp, vertical = 15.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(Tr.t(lang, "lessonN", i + 1), color = T.tx, fontSize = 15.5.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))

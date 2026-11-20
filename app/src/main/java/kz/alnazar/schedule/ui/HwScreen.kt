@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -94,18 +95,18 @@ fun HwScreen(st: AppState) {
             val over = open.filter { it.due != null && it.due < tk }.sortedBy { it.due }
             if (over.isNotEmpty()) {
                 item { Box(Modifier.padding(horizontal = 16.dp)) { Sec(Tr.t(lang, "hw_overdue")) } }
-                items(over, key = { it.id }) { h -> Box(Modifier.padding(horizontal = 16.dp)) { HwItem(st, h, today) } }
+                hwList(over, st, today)
             }
             // по дням сдачи: «Сегодня», «Завтра», «пт, 21 ноя»…
             open.filter { it.due != null && it.due >= tk }.groupBy { it.due!! }.toSortedMap().forEach { (d, list) ->
                 val date = LocalDate.parse(d)
                 item(key = "h$d") { Box(Modifier.padding(horizontal = 16.dp)) { Sec(Sched.dueLabel(lang, today, date)) } }
-                items(list, key = { it.id }) { h -> Box(Modifier.padding(horizontal = 16.dp)) { HwItem(st, h, today, showDue = false) } }
+                hwList(list, st, today, showDue = false)
             }
             val nodue = open.filter { it.due == null }
             if (nodue.isNotEmpty()) {
                 item { Box(Modifier.padding(horizontal = 16.dp)) { Sec(Tr.t(lang, "hw_nodue")) } }
-                items(nodue, key = { it.id }) { h -> Box(Modifier.padding(horizontal = 16.dp)) { HwItem(st, h, today) } }
+                hwList(nodue, st, today)
             }
             if (done.isNotEmpty()) {
                 item {
@@ -118,21 +119,28 @@ fun HwScreen(st: AppState) {
                             })
                     }
                 }
-                items(done.take(30), key = { it.id }) { h -> Box(Modifier.padding(horizontal = 16.dp)) { HwItem(st, h, today) } }
+                hwList(done.take(30), st, today)
             }
             if (open.isNotEmpty() || done.isNotEmpty()) item { Text(Tr.t(lang, "hw_swipe"), color = T.tx2, fontSize = 12.5.sp, modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)) }
         } else {
             val notes = st.hw.filter { it.kind == "note" }.sortedByDescending { it.created }
             if (notes.isEmpty()) item { Empty(Tr.t(lang, "hw_empty")) }
-            items(notes, key = { it.id }) { h -> Box(Modifier.padding(horizontal = 16.dp)) { HwItem(st, h, today) } }
+            hwList(notes, st, today)
         }
+    }
+}
+
+/** Список записей: у ColorOS соседние записи одного дня слиты в одну карточку с общими скруглениями. */
+private fun androidx.compose.foundation.lazy.LazyListScope.hwList(list: List<Hw>, st: AppState, today: LocalDate, showDue: Boolean = true) {
+    itemsIndexed(list, key = { _, h -> h.id }) { i, h ->
+        Box(Modifier.padding(horizontal = 16.dp)) { HwItem(st, h, today, showDue, first = i == 0, last = i == list.lastIndex) }
     }
 }
 
 /** Карточка записи: кружок-галочка, предмет, срок, текст, фото. Смахивание влево — удалить. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
+fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true, first: Boolean = true, last: Boolean = true) {
     val ctx = LocalContext.current
     val ui = LocalUi.current
     val lang = st.appLang
@@ -144,9 +152,11 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
             true
         } else false
     })
-    val shape = RoundedCornerShape(t.rc * .75f)
+    val co = t.id == "color"
+    val shape = if (co) RoundedCornerShape(topStart = if (first) t.rc else 0.dp, topEnd = if (first) t.rc else 0.dp, bottomStart = if (last) t.rc else 0.dp, bottomEnd = if (last) t.rc else 0.dp)
+        else RoundedCornerShape(t.rc * .75f)
     SwipeToDismissBox(
-        state = state, modifier = Modifier.padding(bottom = 8.dp), enableDismissFromStartToEnd = false,
+        state = state, modifier = Modifier.padding(bottom = if (co) 0.dp else 8.dp), enableDismissFromStartToEnd = false,
         backgroundContent = {
             // красный фон с корзиной виден только пока тянешь карточку (карточка полупрозрачная — иначе он просвечивает)
             if (state.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
@@ -156,10 +166,12 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
             }
         },
     ) {
+        androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().then(if (co) Modifier.clip(shape).background(t.s1) else Modifier)) {
         Row(
-            Modifier.fillMaxWidth().styleCard(shape).press(shape) { ui.open { HwSheet(h.id, h.kind) } }
-                .padding(horizontal = 12.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp),
+            (if (co) Modifier.fillMaxWidth().coRow { ui.open { HwSheet(h.id, h.kind) } }.padding(horizontal = 18.dp, vertical = 14.dp)
+            else Modifier.fillMaxWidth().styleCard(shape).press(shape) { ui.open { HwSheet(h.id, h.kind) } }
+                .padding(horizontal = 12.dp, vertical = 11.dp)),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (co) 14.dp else 11.dp),
         ) {
             if (h.kind == "hw") {
                 AnimCheck(h.done, 24.dp, false, t.tx2) {
@@ -170,7 +182,7 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
             if (v != null) Tile(v.emoji, v.color, 40.dp)
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(v?.name ?: Tr.t(lang, "type_note"), color = t.tx, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    Text(v?.name ?: Tr.t(lang, "type_note"), color = t.tx, fontSize = if (co) 17.sp else 15.sp, fontWeight = FontWeight.SemiBold,
                         maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     if (showDue && h.due != null) {
                         val d = LocalDate.parse(h.due)
@@ -179,7 +191,7 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
                     }
                 }
                 if (h.text.isNotBlank()) Text(
-                    h.text, color = if (h.done) t.tx2 else t.tx.copy(alpha = .9f), fontSize = 14.sp, maxLines = 4, overflow = TextOverflow.Ellipsis,
+                    h.text, color = if (h.done) t.tx2 else t.tx.copy(alpha = .9f), fontSize = if (co) 15.sp else 14.sp, maxLines = 4, overflow = TextOverflow.Ellipsis,
                     textDecoration = if (h.done) TextDecoration.LineThrough else null, modifier = Modifier.padding(top = 2.dp),
                 )
                 if (h.photos.isNotEmpty()) Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -187,6 +199,8 @@ fun HwItem(st: AppState, h: Hw, today: LocalDate, showDue: Boolean = true) {
                     if (h.photos.size > 4) Text("+${h.photos.size - 4}", color = t.tx2, fontSize = 13.sp, modifier = Modifier.align(Alignment.CenterVertically))
                 }
             }
+        }
+        if (co && !last) androidx.compose.runtime.CompositionLocalProvider(LocalRowInset provides 18.dp) { RowDivider() }
         }
     }
 }
