@@ -164,8 +164,8 @@ fun CoSearchPill(
                 .drawBehind {
                     // две широкие слабые кромки: сверху и снизу, к середине и бокам затухают
                     val o = shape.createOutline(size, layoutDirection, this)
-                    drawOutline(o, Brush.verticalGradient(0f to Color(0x4DFFFFFF), .34f to Color(0x06FFFFFF), .66f to Color(0x06FFFFFF), 1f to Color(0x40FFFFFF)), style = Stroke(1.5.dp.toPx()))
-                    drawOutline(o, Brush.verticalGradient(0f to Color(0x59FFFFFF), .4f to Color(0x0AFFFFFF), .6f to Color(0x0AFFFFFF), 1f to Color(0x4DFFFFFF)), style = Stroke(.5.dp.toPx()))
+                    drawOutline(o, Brush.verticalGradient(0f to Color(0x4DFFFFFF), .2f to Color(0x06FFFFFF), .8f to Color(0x06FFFFFF), 1f to Color(0x40FFFFFF)), style = Stroke(1.5.dp.toPx()))
+                    drawOutline(o, Brush.verticalGradient(0f to Color(0x59FFFFFF), .25f to Color(0x0AFFFFFF), .75f to Color(0x0AFFFFFF), 1f to Color(0x4DFFFFFF)), style = Stroke(.5.dp.toPx()))
                 }
                 .clickable(interactionSource = press, indication = null, enabled = !open, onClick = onOpen),
             contentAlignment = Alignment.CenterStart,
