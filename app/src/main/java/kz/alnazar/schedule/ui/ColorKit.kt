@@ -162,10 +162,10 @@ fun CoSearchPill(
                 .shadow(14.dp, shape, ambientColor = Color(0x66000000), spotColor = Color(0x66000000))
                 .frostBlur(backdrop, origin, 22.dp, Color(0x6626262A), shape)
                 .drawBehind {
-                    // широкая слабая кромка: светлее сверху, чуть мягче снизу
+                    // две широкие слабые кромки: сверху и снизу, к середине и бокам затухают
                     val o = shape.createOutline(size, layoutDirection, this)
-                    drawOutline(o, Brush.verticalGradient(0f to Color(0x4DFFFFFF), .5f to Color(0x14FFFFFF), 1f to Color(0x30FFFFFF)), style = Stroke(7.dp.toPx()))
-                    drawOutline(o, Brush.verticalGradient(0f to Color(0x59FFFFFF), 1f to Color(0x1AFFFFFF)), style = Stroke(1.dp.toPx()))
+                    drawOutline(o, Brush.verticalGradient(0f to Color(0x4DFFFFFF), .34f to Color(0x06FFFFFF), .66f to Color(0x06FFFFFF), 1f to Color(0x40FFFFFF)), style = Stroke(6.dp.toPx()))
+                    drawOutline(o, Brush.verticalGradient(0f to Color(0x59FFFFFF), .4f to Color(0x0AFFFFFF), .6f to Color(0x0AFFFFFF), 1f to Color(0x4DFFFFFF)), style = Stroke(1.dp.toPx()))
                 }
                 .clickable(interactionSource = press, indication = null, enabled = !open, onClick = onOpen),
             contentAlignment = Alignment.CenterStart,
