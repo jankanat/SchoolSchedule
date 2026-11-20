@@ -90,15 +90,16 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun Modifier.glass(shape: Shape, color: Color = T.s1): Modifier {
     val t = T
+    val gk = LocalGlare.current
     if (!t.glassy) return this.clip(shape).background(color, shape)
     val base = this.clip(shape).background(color, shape)
-        .border(if (t.glow) 1.2.dp else 1.dp, Brush.verticalGradient(listOf(t.cardBorderTop, t.cardBorderBottom)), shape)
+        .border(if (t.glow) 1.2.dp else 1.dp, Brush.verticalGradient(listOf(t.cardBorderTop.gl(gk), t.cardBorderBottom.gl(gk))), shape)
     if (!t.glow) return base
     // ColorOS: мягкое белое свечение по внутреннему контуру
     return base.drawWithContent {
         drawContent()
         val o = shape.createOutline(size, layoutDirection, this)
-        drawOutline(o, Brush.verticalGradient(listOf(Color(0x24FFFFFF), Color(0x05FFFFFF))), style = Stroke(5.dp.toPx()))
+        drawOutline(o, Brush.verticalGradient(listOf(Color(0x24FFFFFF).gl(gk), Color(0x05FFFFFF).gl(gk))), style = Stroke(5.dp.toPx()))
     }
 }
 

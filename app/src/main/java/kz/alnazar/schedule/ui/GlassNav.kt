@@ -228,6 +228,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val drop = remember { Drop() }
+    val gk = LocalGlare.current
     var pressed by remember { mutableStateOf(false) }
     var grabbing by remember { mutableStateOf(false) }
     val pagerDragged by pager.interactionSource.collectIsDraggedAsState()
@@ -327,7 +328,7 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                         bgLayer.record { translate(-navPos.x, -navPos.y) { drawLayer(backdrop) } }
                         drawLayer(bgLayer)
                         drawRect(t.navBg)
-                        drawRect(Brush.verticalGradient(0f to Color(0x4DFFFFFF), .42f to Color.Transparent, .76f to Color.Transparent, 1f to Color(0x1FFFFFFF)))
+                        drawRect(Brush.verticalGradient(0f to Color(0x4DFFFFFF).gl(gk), .42f to Color.Transparent, .76f to Color.Transparent, 1f to Color(0x1FFFFFFF).gl(gk)))
                     }.border(1.dp, t.navBorder, pill),
                 )
                 NavButtons(tabs, btnW.dp, t.tx2)
@@ -386,8 +387,8 @@ fun GlassNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
                     Modifier.fillMaxSize().graphicsLayer { alpha = drop.hl.coerceIn(0f, 1f) }.border(
                         1.2.dp,
                         Brush.linearGradient(
-                            0f to Color(0xD9FFFFFF), .14f to Color(0x59FFFFFF), .30f to Color.Transparent,
-                            .70f to Color.Transparent, .86f to Color(0x59FFFFFF), 1f to Color(0xD9FFFFFF),
+                            0f to Color(0xD9FFFFFF).gl(gk), .14f to Color(0x59FFFFFF).gl(gk), .30f to Color.Transparent,
+                            .70f to Color.Transparent, .86f to Color(0x59FFFFFF).gl(gk), 1f to Color(0xD9FFFFFF).gl(gk),
                         ),
                         pill,
                     ),

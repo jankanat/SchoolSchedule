@@ -80,6 +80,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
     val t = T
     val scope = rememberCoroutineScope()
     val hf = LocalHapticFeedback.current
+    val gk = LocalGlare.current
     val den = LocalDensity.current
     val absorb = remember { Animatable(0f) }          // 0 — кнопки на месте, 1 — втекли в капсулу
     val move = remember { Animatable(0f) }
@@ -139,7 +140,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         }
 
         // ---- левая кнопка: настройки (с бликами по краю, как у капсулы) ----
-        val rim = Brush.verticalGradient(listOf(Color(0x59FFFFFF), Color.Transparent, Color(0x1AFFFFFF)))
+        val rim = Brush.verticalGradient(listOf(Color(0x59FFFFFF).gl(gk), Color.Transparent, Color(0x1AFFFFFF).gl(gk)))
         Box(Modifier.offset(x = 0.dp, y = (pillH - circ) / 2).size(circ)
             .graphicsLayer { val k = sL(); translationX = dxL(); scaleX = k; scaleY = k; alpha = (k * 1.4f).coerceIn(0f, 1f) }
             .clip(CircleShape).backdropBlur(backdrop, 20.dp, Color.Transparent, CircleShape)
@@ -147,7 +148,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
             .drawWithContent {
                 drawContent()
                 // мягкий блик сверху-слева
-                drawCircle(Brush.radialGradient(listOf(Color(0x2EFFFFFF), Color.Transparent), Offset(size.width * .3f, size.height * .22f), size.width * .6f))
+                drawCircle(Brush.radialGradient(listOf(Color(0x2EFFFFFF).gl(gk), Color.Transparent), Offset(size.width * .3f, size.height * .22f), size.width * .6f))
             }
             .press(CircleShape, scaleTo = .88f, enabled = lOn, onClick = onSettings), contentAlignment = Alignment.Center) {
             Icon(Ic.set, null, tint = t.tx, modifier = Modifier.size(26.dp))
@@ -157,7 +158,7 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
             .graphicsLayer { val k = sR(); translationX = -dxR(); scaleX = k; scaleY = k; alpha = (k * 1.4f).coerceIn(0f, 1f) }
             .clip(CircleShape)
             // слабая кромка: светлая сверху и снизу, каждая ~35% окружности
-            .border(1.2.dp, Brush.verticalGradient(0f to Color(0x66FFFFFF), .35f to Color.Transparent, .65f to Color.Transparent, 1f to Color(0x47FFFFFF)), CircleShape)
+            .border(1.2.dp, Brush.verticalGradient(0f to Color(0x66FFFFFF).gl(gk), .35f to Color.Transparent, .65f to Color.Transparent, 1f to Color(0x47FFFFFF).gl(gk)), CircleShape)
             .press(CircleShape, scaleTo = .88f, enabled = rOn, onClick = onPlus), contentAlignment = Alignment.Center) {
             Icon(Ic.plus, null, tint = plusInk, modifier = Modifier.size(28.dp))
         }
@@ -166,13 +167,13 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         Box(Modifier.offset(x = circ + gap).width(pillW).height(pillH)
             .graphicsLayer { scaleX = pillSX(); scaleY = pillSY(); translationX = pillTx(); translationY = pillTy() }
             .clip(pillShape).backdropBlur(backdrop, 26.dp, Color.Transparent, pillShape)
-            .border(1.dp, Brush.verticalGradient(listOf(Color(0x38FFFFFF), Color.Transparent, Color(0x0DFFFFFF))), pillShape)
+            .border(1.dp, Brush.verticalGradient(listOf(Color(0x38FFFFFF).gl(gk), Color.Transparent, Color(0x0DFFFFFF).gl(gk))), pillShape)
             .drawWithContent {
                 drawContent()
                 val a = glowA.value
                 if (a > 0f) {
                     val r = 85.dp.toPx()
-                    drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = .38f * a), Color.White.copy(alpha = .16f * a), Color.Transparent),
+                    drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = .38f * a * gk.coerceAtMost(1f)), Color.White.copy(alpha = .16f * a * gk.coerceAtMost(1f)), Color.Transparent),
                         Offset(touchX, size.height / 2), r), r, Offset(touchX, size.height / 2))
                 }
             }

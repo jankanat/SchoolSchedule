@@ -132,7 +132,8 @@ private fun Root() {
     // размер интерфейса: масштабируем плотность — вырастают и текст, и отступы, и иконки; системный шрифт сохраняется
     val d0 = LocalDensity.current
     val scaled = remember(d0, st.uiScale) { Density(d0.density * st.uiScale.coerceIn(.8f, 1.3f), d0.fontScale) }
-    CompositionLocalProvider(LocalDensity provides scaled) {
+    val glareK = if (st.style == "color" || st.style == "ios26" || st.style == "origin") (if (st.glareUi) st.glareUiK else 0f) else 1f
+    CompositionLocalProvider(LocalDensity provides scaled, LocalGlare provides glareK) {
     AppTheme(tok, st.font) {
     val goTab: (Int) -> Unit = { i -> ui.home(); ui.close(); scope.launch { pager.animateScrollToPage(i.coerceIn(0, 2)) } }
     CompositionLocalProvider(LocalUi provides ui, LocalIcons provides IconPrefs(st.iconSet, st.iconTint), LocalBackdrop provides backdrop, LocalGoTab provides goTab) {

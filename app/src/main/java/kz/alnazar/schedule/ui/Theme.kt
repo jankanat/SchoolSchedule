@@ -236,6 +236,10 @@ fun Tok.withRadius(k0: Float): Tok {
     return if (k == 1f) this else copy(rc = rc * k, rsg = rsg * k, iconRadius = (iconRadius * k).coerceAtMost(.5f))
 }
 
+/** Сила бликов/кромок интерфейса: 0 — выкл, 1 — как задумано, до 1.5. */
+val LocalGlare = androidx.compose.runtime.compositionLocalOf { 1f }
+fun Color.gl(k: Float): Color = copy(alpha = (alpha * k).coerceIn(0f, 1f))
+
 @Composable
 fun AppTheme(tok: Tok = Ios26Dark, font: String = "style", content: @Composable () -> Unit) {
     MaterialTheme(
