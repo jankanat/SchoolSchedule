@@ -29,6 +29,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -122,7 +126,10 @@ fun SettingsScreen(st: AppState) {
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    val bd = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    var origin by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInRoot() }) {
+        Box(Modifier.fillMaxSize().drawWithContent { bd.record { this@drawWithContent.drawContent() }; drawLayer(bd) }) {
         Page(bottomNav = false) {
             item { HdrBack(Tr.t(lang, "set_title")) { ui.back() } }
             item {
@@ -140,8 +147,9 @@ fun SettingsScreen(st: AppState) {
                 }
             }
         }
+        }
         if (co) CoSearchPill(
-            Tr.t(lang, "search"), searching, query,
+            Tr.t(lang, "search"), searching, query, bd, { origin },
             onOpen = { searching = true }, onQuery = { query = it }, onClose = { searching = false; query = "" },
             modifier = Modifier.align(Alignment.BottomCenter),
         )

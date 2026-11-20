@@ -2,6 +2,29 @@ package kz.alnazar.schedule.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.layer.GraphicsLayer
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -101,35 +124,68 @@ fun coIconFor(emoji: String): ImageVector = when {
     else -> CoIc.dot
 }
 
-/** Плавающая стеклянная пилюля «Поиск»: по нажатию превращается в поле ввода. */
+/** Матовое стекло: размывает слой [backdrop] под собой. [origin] — положение слоя на экране. */
 @Composable
-fun CoSearchPill(label: String, open: Boolean, query: String, onOpen: () -> Unit, onQuery: (String) -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
+fun Modifier.frostBlur(backdrop: GraphicsLayer, origin: () -> Offset, blur: Dp, tint: Color, shape: Shape): Modifier {
+    var pos by remember { mutableStateOf(Offset.Zero) }
+    val layer = rememberGraphicsLayer()
+    return this.onGloballyPositioned { pos = it.positionInRoot() }.clip(shape).drawBehind {
+        val rel = pos - origin()
+        val hw = (size.width / 2f).toInt().coerceAtLeast(1); val hh = (size.height / 2f).toInt().coerceAtLeast(1)
+        layer.renderEffect = BlurEffect(blur.toPx() / 2f, blur.toPx() / 2f, TileMode.Clamp)
+        layer.record(size = IntSize(hw, hh)) { scale(.5f, Offset.Zero) { translate(-rel.x, -rel.y) { drawLayer(backdrop) } } }
+        scale(2f, Offset.Zero) { drawLayer(layer) }
+        drawRect(tint)
+    }
+}
+
+/** Плавающая пилюля «Поиск»: матовое стекло с широкой мягкой кромкой; по нажатию плавно раскрывается в поле ввода. */
+@Composable
+fun CoSearchPill(
+    label: String, open: Boolean, query: String, backdrop: GraphicsLayer, origin: () -> Offset,
+    onOpen: () -> Unit, onQuery: (String) -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier,
+) {
     val t = T
     val focus = remember { FocusRequester() }
-    LaunchedEffect(open) { if (open) runCatching { focus.requestFocus() } }
+    val p by animateFloatAsState(if (open) 1f else 0f, spring(dampingRatio = .78f, stiffness = 320f), label = "pill")
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val sc by animateFloatAsState(if (pressed && !open) .95f else 1f, spring(.6f, 500f), label = "pillp")
+    LaunchedEffect(open) { if (open) { kotlinx.coroutines.delay(120); runCatching { focus.requestFocus() } } }
     val shape = CircleShape
-    val w: Dp = if (open) 0.dp else 168.dp
-    Box(
-        modifier.imePadding().padding(bottom = 22.dp).then(if (open) Modifier.fillMaxWidth().padding(horizontal = 18.dp) else Modifier.width(w))
-            .height(54.dp).then(Modifier.vol3d(shape)).background(Color(0xCC1C1C1E), shape)
-            .then(if (open) Modifier else Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onOpen)),
-        contentAlignment = if (open) Alignment.CenterStart else Alignment.Center,
-    ) {
-        Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Icon(CoIc.search, null, tint = t.tx2, modifier = Modifier.size(22.dp))
-            if (open) {
-                Box(Modifier.weight(1f)) {
-                    if (query.isEmpty()) Text(label, color = t.tx2, fontSize = 17.sp)
-                    BasicTextField(
+    BoxWithConstraints(modifier.fillMaxWidth().imePadding().padding(bottom = 22.dp), contentAlignment = Alignment.BottomCenter) {
+        val closedW = 168.dp
+        val w = closedW + (maxWidth - 36.dp - closedW) * p
+        Box(
+            Modifier.width(w).height(56.dp).graphicsLayer { scaleX = sc; scaleY = sc }
+                .shadow(14.dp, shape, ambientColor = Color(0x66000000), spotColor = Color(0x66000000))
+                .frostBlur(backdrop, origin, 22.dp, Color(0x6626262A), shape)
+                .drawBehind {
+                    // широкая слабая кромка: светлее сверху, чуть мягче снизу
+                    val o = shape.createOutline(size, layoutDirection, this)
+                    drawOutline(o, Brush.verticalGradient(0f to Color(0x4DFFFFFF), .5f to Color(0x14FFFFFF), 1f to Color(0x30FFFFFF)), style = Stroke(7.dp.toPx()))
+                    drawOutline(o, Brush.verticalGradient(0f to Color(0x59FFFFFF), 1f to Color(0x1AFFFFFF)), style = Stroke(1.dp.toPx()))
+                }
+                .clickable(interactionSource = press, indication = null, enabled = !open, onClick = onOpen),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(CoIc.search, null, tint = t.tx2, modifier = Modifier.size(22.dp))
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    Text(label, color = t.tx2, fontSize = 17.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+                        modifier = Modifier.graphicsLayer { alpha = if (query.isEmpty()) 1f else 0f })
+                    if (p > .02f) BasicTextField(
                         query, onQuery, singleLine = true,
                         textStyle = TextStyle(color = t.tx, fontSize = 17.sp), cursorBrush = SolidColor(t.acc),
-                        modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                        modifier = Modifier.fillMaxWidth().focusRequester(focus).graphicsLayer { alpha = p },
                     )
                 }
-                Box(Modifier.size(28.dp).clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose), contentAlignment = Alignment.Center) {
-                    Icon(Ic.close, null, tint = t.tx2, modifier = Modifier.size(18.dp))
-                }
-            } else Text(label, color = t.tx2, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+                if (p > .02f) Box(
+                    Modifier.size(30.dp).graphicsLayer { alpha = p }
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Ic.close, null, tint = t.tx2, modifier = Modifier.size(18.dp)) }
+            }
         }
     }
 }
