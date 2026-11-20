@@ -74,7 +74,7 @@ fun StyleNav(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, mod
             // Ширина меню не меняется (иначе каждый кадр пересчитывается стекло и всё лагает): оно только плавно съезжает к центру.
             val shift by animateDpAsState(if (showPlus) 0.dp else 40.dp, spring(.66f, 600f), label = "navShift")
             Box(modifier.fillMaxWidth()) {
-                GlassNav(tabs, pager, backdrop, Modifier.padding(end = 80.dp).offset { androidx.compose.ui.unit.IntOffset(shift.roundToPx(), 0) }, accent = if (T.nav == "origin") Color(0xFF4C8DFF) else null)
+                GlassNav(tabs, pager, backdrop, Modifier.padding(end = 80.dp).offset { androidx.compose.ui.unit.IntOffset(shift.roundToPx(), 0) }, accent = T.tx)
                 SidePop(showPlus, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 14.dp, bottom = 14.dp)) {
                     SideGlassBtn(Ic.plus, backdrop, Modifier, 70.dp, onPlus)
                 }
@@ -101,7 +101,7 @@ fun SidePop(show: Boolean, modifier: Modifier = Modifier, content: @Composable (
 fun SideGlassBtn(icon: androidx.compose.ui.graphics.vector.ImageVector, backdrop: GraphicsLayer, modifier: Modifier, size: Dp, onClick: () -> Unit) {
     val t = T
     val shape = androidx.compose.foundation.shape.CircleShape
-    val tint = when (t.id) { "oneui" -> Color(0x2EFFFFFF); "origin" -> Color(0x33FFFFFF); else -> Color(0x40302F3C) }
+    val tint = when (t.id) { "oneui" -> Color(0x2EFFFFFF); "origin" -> Color(0x33FFFFFF); else -> Color(0x40303030) }
     Box(modifier.size(size).plusAnchor().graphicsLayer { alpha = if (PlusAnchor.open) 0f else 1f }.press(shape, scaleTo = .9f, onClick = onClick).backdropBlur(backdrop, 14.dp, tint, shape)
         .then(if (t.id == "oneui") Modifier else Modifier.border(1.dp, Brush.linearGradient(listOf(Color(0xB3FFFFFF), Color(0x14FFFFFF), Color(0x80FFFFFF))), shape)),
         contentAlignment = Alignment.Center) {
