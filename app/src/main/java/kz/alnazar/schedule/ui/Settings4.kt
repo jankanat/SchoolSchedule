@@ -447,7 +447,6 @@ private fun GlareCard(on: Boolean, k: Float, onToggle: (Boolean) -> Unit, onChan
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FontAndCorners(st: AppState) {
     val ctx = LocalContext.current
