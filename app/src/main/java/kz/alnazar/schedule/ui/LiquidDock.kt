@@ -117,9 +117,9 @@ fun LiquidDock(tabs: List<NavTab>, pager: PagerState, backdrop: GraphicsLayer, m
         fun dxR() = maxOf(move.value, 1f - showR.value) * travel
         fun sL() = ((1f - absorb.value) * showL.value).coerceIn(0f, 1f)
         fun sR() = if (PlusAnchor.open) 0f else ((1f - absorb.value) * showR.value).coerceIn(0f, 1f)
-        val rubberYpx = with(den) { 7.dp.toPx() }; val pillHpx = with(den) { pillH.toPx() }
+        val rubberYpx = with(den) { 5.dp.toPx() }; val pillHpx = with(den) { pillH.toPx() }
         // вертикальная тяга увеличивает капсулу целиком (равномерно), поэтому она остаётся капсулой, только крупнее
-        fun vf() = 1f + abs(rubberX(dragY.value, rubberYpx)) / pillHpx * .22f
+        fun vf() = 1f + abs(rubberX(dragY.value, rubberYpx)) / pillHpx * .12f
         fun pillSX() = press.value * (1f + abs(drag.value) / pillWpx * .06f) * vf()
         fun pillTx() = rubberX(drag.value, rubberPx)
         fun pillSY() = press.value * vf()
