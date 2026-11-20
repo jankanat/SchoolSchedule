@@ -139,7 +139,7 @@ fun ImportPage(st: AppState) {
                 VSpace(14.dp)
                 Btn(Tr.t(lang, if (busy) "i5_busy" else "i5_run"), Modifier.fillMaxWidth(), enabled = !busy) { run() }
             }
-            err?.let { Text(it, color = T.danger, fontSize = 13.5.sp, modifier = Modifier.padding(top = 12.dp)) }
+            err?.let { Text(it, color = androidx.compose.ui.graphics.Color(0xFFFF453A), fontSize = 13.5.sp, modifier = Modifier.padding(top = 12.dp)) }
         } else {
             Sec(Tr.t(lang, "i5_prev"))
             d.forEachIndexed { di, day ->
